@@ -5,7 +5,6 @@ from ..auth import require_auth, require_admin, get_current_user
 from datetime import datetime
 
 def _parse_fecha(valor):
-    """Convierte '2026-06-28T17:00' o '2026-06-28 17:00' a datetime, o None."""
     if not valor:
         return None
     for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
@@ -65,11 +64,11 @@ def crear_solicitud():
              prioridad, lat, lng, solicitante_id)
         OUTPUT INSERTED.id, INSERTED.fecha_creacion
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, descripcion, grupo_id,
-        data.get("ubicacion"), _parse_fecha(data.get("fecha_hora")),
-        prioridad,
-        data.get("lat"), data.get("lng"),
-        data.get("solicitante_id") or None)
+    """, (descripcion, grupo_id,
+          data.get("ubicacion"), _parse_fecha(data.get("fecha_hora")),
+          prioridad,
+          data.get("lat"), data.get("lng"),
+          data.get("solicitante_id") or None))
     row = cur.fetchone()
     conn.commit()
     conn.close()
@@ -96,7 +95,7 @@ def listar_solicitudes():
     if user["rol"] == "admin":
         cur.execute(SELECT_BASE + ORDER)
     else:
-        cur.execute(SELECT_BASE + " WHERE s.creado_por_grupo_id = %s " + ORDER, user["grupo_id"])
+        cur.execute(SELECT_BASE + " WHERE s.creado_por_grupo_id = %s " + ORDER, (user["grupo_id"],))
     rows = [_row_to_dict(r) for r in cur.fetchall()]
     conn.close()
     return jsonify(rows)

@@ -28,7 +28,7 @@ def listar_miembros():
             JOIN MesaDeContingencia.grupos_trabajo g ON g.id = mg.grupo_id
             WHERE mg.grupo_id = %s
             ORDER BY m.nombre
-        """, user["grupo_id"])
+        """, (user["grupo_id"],))
     rows = [
         {"id": r[0], "nombre": r[1], "cedula": r[2], "telefono": r[3],
          "tlf_alternativo": r[4], "cargo": r[5], "email": r[6],
@@ -57,19 +57,19 @@ def crear_miembro():
         INSERT INTO MesaDeContingencia.miembros (nombre, cedula, telefono, tlf_alternativo, cargo, email)
         OUTPUT INSERTED.id
         VALUES (%s, %s, %s, %s, %s, %s)
-    """, data["nombre"].strip(),
-        data.get("cedula") or None,
-        data.get("telefono") or None,
-        data.get("tlf_alternativo") or None,
-        data.get("cargo") or None,
-        data.get("email") or None)
+    """, (data["nombre"].strip(),
+          data.get("cedula") or None,
+          data.get("telefono") or None,
+          data.get("tlf_alternativo") or None,
+          data.get("cargo") or None,
+          data.get("email") or None))
     new_id = cur.fetchone()[0]
 
     if grupo_id:
         cur.execute("""
             INSERT INTO MesaDeContingencia.miembros_grupos (miembro_id, grupo_id)
             VALUES (%s, %s)
-        """, new_id, grupo_id)
+        """, (new_id, grupo_id))
 
     conn.commit()
     conn.close()

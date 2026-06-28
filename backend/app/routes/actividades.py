@@ -14,26 +14,24 @@ def crear_actividad():
     grupo_id = data.get("grupo_id")
     if not solicitud_id or not grupo_id:
         return jsonify({"error": "solicitud_id y grupo_id requeridos"}), 400
-    # Un grupo solo puede asignarse a sí mismo
     if user["rol"] == "grupo" and int(grupo_id) != user["grupo_id"]:
         return jsonify({"error": "Solo puedes asignar actividades a tu propio grupo"}), 403
     conn = get_connection()
     cur = conn.cursor()
-    # Verificar que la solicitud pertenece al grupo (si es grupo)
     if user["rol"] == "grupo":
-        cur.execute("SELECT creado_por_grupo_id FROM MesaDeContingencia.solicitudes WHERE id = %s", solicitud_id)
+        cur.execute("SELECT creado_por_grupo_id FROM MesaDeContingencia.solicitudes WHERE id = %s", (solicitud_id,))
         row = cur.fetchone()
         if not row or row[0] != user["grupo_id"]:
             conn.close()
             return jsonify({"error": "Solo puedes autoasignarte tus propias solicitudes"}), 403
-    cur.execute("SELECT id FROM MesaDeContingencia.actividades WHERE solicitud_id = %s", solicitud_id)
+    cur.execute("SELECT id FROM MesaDeContingencia.actividades WHERE solicitud_id = %s", (solicitud_id,))
     if cur.fetchone():
         conn.close()
         return jsonify({"error": "Esta solicitud ya fue asignada"}), 409
     cur.execute("""
         INSERT INTO MesaDeContingencia.actividades (solicitud_id, grupo_id, estado)
         OUTPUT INSERTED.id VALUES (%s, %s, 'Por ejecutar')
-    """, solicitud_id, grupo_id)
+    """, (solicitud_id, grupo_id))
     new_id = cur.fetchone()[0]
     conn.commit()
     conn.close()
@@ -49,9 +47,8 @@ def actualizar_actividad(act_id):
         return jsonify({"error": f"Estado inválido. Valores: {ESTADOS}"}), 400
     conn = get_connection()
     cur = conn.cursor()
-    # Grupos solo pueden actualizar sus propias actividades
     if user["rol"] == "grupo":
-        cur.execute("SELECT grupo_id FROM MesaDeContingencia.actividades WHERE id = %s", act_id)
+        cur.execute("SELECT grupo_id FROM MesaDeContingencia.actividades WHERE id = %s", (act_id,))
         row = cur.fetchone()
         if not row or row[0] != user["grupo_id"]:
             conn.close()
@@ -59,7 +56,7 @@ def actualizar_actividad(act_id):
     cur.execute("""
         UPDATE MesaDeContingencia.actividades
         SET estado = %s, fecha_actualizacion = GETDATE() WHERE id = %s
-    """, nuevo_estado, act_id)
+    """, (nuevo_estado, act_id))
     conn.commit()
     conn.close()
     return jsonify({"id": act_id, "estado": nuevo_estado})
@@ -74,8 +71,7 @@ def set_miembros_actividad(act_id):
     miembro_ids = data.get("miembro_ids", [])
     conn = get_connection()
     cur = conn.cursor()
-    # Verificar acceso
-    cur.execute("SELECT grupo_id FROM MesaDeContingencia.actividades WHERE id = %s", act_id)
+    cur.execute("SELECT grupo_id FROM MesaDeContingencia.actividades WHERE id = %s", (act_id,))
     row = cur.fetchone()
     if not row:
         conn.close()
@@ -83,10 +79,9 @@ def set_miembros_actividad(act_id):
     if user["rol"] == "grupo" and row[0] != user["grupo_id"]:
         conn.close()
         return jsonify({"error": "Acceso denegado"}), 403
-    # Reemplazar membresía
-    cur.execute("DELETE FROM MesaDeContingencia.actividad_miembros WHERE actividad_id = %s", act_id)
+    cur.execute("DELETE FROM MesaDeContingencia.actividad_miembros WHERE actividad_id = %s", (act_id,))
     for mid in miembro_ids:
-        cur.execute("INSERT INTO MesaDeContingencia.actividad_miembros (actividad_id, miembro_id) VALUES (%s, %s)", act_id, mid)
+        cur.execute("INSERT INTO MesaDeContingencia.actividad_miembros (actividad_id, miembro_id) VALUES (%s, %s)", (act_id, mid))
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "miembro_ids": miembro_ids})
@@ -109,7 +104,7 @@ def listar_actividades():
         LEFT JOIN MesaDeContingencia.miembros ms ON ms.id = s.solicitante_id
     """
     if user["rol"] == "grupo":
-        cur.execute(base + " WHERE a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", user["grupo_id"])
+        cur.execute(base + " WHERE a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", (user["grupo_id"],))
     else:
         cur.execute(base + " ORDER BY a.fecha_actualizacion DESC")
     actividades = {r[0]: {
