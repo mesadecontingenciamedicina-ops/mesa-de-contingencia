@@ -25,7 +25,7 @@ export default function Login() {
   return (
     <div className="login-bg">
       <div className="login-card">
-        <div className="login-logo">🏥</div>
+        <img src="/logo-facmed.png" alt="Facultad de Medicina UCV" className="login-logo-img" />
         <h1 className="login-title">Mesa de Contingencia</h1>
         <p className="login-sub">Facultad de Medicina · UCV</p>
 

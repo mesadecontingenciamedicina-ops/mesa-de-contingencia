@@ -46,9 +46,12 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-inner">
-          <div>
-            <h1>Mesa de Contingencia</h1>
-            <p className="subtitle">Facultad de Medicina · UCV</p>
+          <div className="header-brand">
+            <img src="/logo-facmed.png" alt="Logo Facultad de Medicina UCV" className="header-logo" />
+            <div>
+              <h1>Mesa de Contingencia</h1>
+              <p className="subtitle">Facultad de Medicina · UCV</p>
+            </div>
           </div>
           <div className="header-user">
             <PanelNotificaciones onAbrirActividad={irAActividad} />
