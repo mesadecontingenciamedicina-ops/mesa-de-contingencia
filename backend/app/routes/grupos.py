@@ -100,9 +100,11 @@ def crear_grupo():
     """, (nombre, data.get("descripcion", "").strip() or None))
     new_id = cur.fetchone()[0]
 
-    # Auto-generar usuario de acceso
-    base = _slug(nombre)
-    username = base
+    # Usar credenciales del body o auto-generar
+    username = (data.get("username") or "").strip() or _slug(nombre)
+    password = (data.get("password") or "").strip() or _gen_password()
+    # Resolver colisión de username
+    base = username
     suffix = 1
     while True:
         cur.execute(f"SELECT 1 FROM {SCHEMA}.usuarios WHERE username = %s", (username,))
@@ -110,7 +112,6 @@ def crear_grupo():
             break
         username = f"{base}_{suffix}"
         suffix += 1
-    password = _gen_password()
     h = generate_password_hash(password)
     cur.execute(f"""
         INSERT INTO {SCHEMA}.usuarios (username, password_hash, password_plain, rol, grupo_id, activo)

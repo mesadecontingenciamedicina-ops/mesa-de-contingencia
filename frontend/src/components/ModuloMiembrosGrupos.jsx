@@ -6,6 +6,17 @@ import { validarFormMiembro, normalizarCedula } from "../utils/validaciones";
 const CARGOS = ["Profesor", "Estudiante", "BR", "Auxiliar", "Voluntario"];
 const FORM_VACIO = { nombre: "", cedula: "", telefono: "", tlf_alternativo: "", cargo: "", email: "", grupo_ids: [] };
 
+function slugify(nombre) {
+  let s = (nombre || "").toLowerCase().trim();
+  s = s.replace(/[áàä]/g,"a").replace(/[éèë]/g,"e").replace(/[íìï]/g,"i").replace(/[óòö]/g,"o").replace(/[úùü]/g,"u");
+  s = s.replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,25);
+  return s ? `grupo_${s}` : "grupo";
+}
+function genPassword(n=10) {
+  const c = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from({length:n},()=>c[Math.floor(Math.random()*c.length)]).join("");
+}
+
 export default function ModuloMiembrosGrupos({ onDataChange }) {
   const { user } = useAuth();
   const isAdmin = user.rol === "admin";
@@ -116,6 +127,8 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
 
   const submitNuevoGrupo = async (e) => {
     e.preventDefault();
+    if (!nuevoGrupo.username.trim()) { flash("El usuario no puede estar vacío.", false); return; }
+    if ((nuevoGrupo.password || "").length < 6) { flash("La contraseña debe tener al menos 6 caracteres.", false); return; }
     try {
       await api.crearGrupo(nuevoGrupo);
       setNuevoGrupo(null);
@@ -339,7 +352,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       {tab === "grupos" && isAdmin && (
         <div className="ver-registros">
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
-            <button className="btn-primary" onClick={() => setNuevoGrupo({ nombre: "", descripcion: "" })}>
+            <button className="btn-primary" onClick={() => setNuevoGrupo({ nombre: "", descripcion: "", username: "", password: genPassword() })}>
               + Nuevo Grupo
             </button>
           </div>
@@ -352,7 +365,10 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                 <form onSubmit={submitNuevoGrupo} className="form" style={{ marginTop: "0.75rem" }}>
                   <label>Nombre del Grupo *
                     <input required autoFocus value={nuevoGrupo.nombre}
-                      onChange={e => setNuevoGrupo(p => ({ ...p, nombre: e.target.value }))}
+                      onChange={e => {
+                        const nombre = e.target.value;
+                        setNuevoGrupo(p => ({ ...p, nombre, username: slugify(nombre) }));
+                      }}
                       placeholder="Ej. Grupo Logística" />
                   </label>
                   <label>Descripción
@@ -360,6 +376,25 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                       onChange={e => setNuevoGrupo(p => ({ ...p, descripcion: e.target.value }))}
                       placeholder="Opcional" />
                   </label>
+                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "0.75rem", marginTop: "0.25rem" }}>
+                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.4rem" }}>Credenciales de acceso</div>
+                    <label>Usuario
+                      <input value={nuevoGrupo.username}
+                        onChange={e => setNuevoGrupo(p => ({ ...p, username: e.target.value }))}
+                        placeholder="grupo_nombre" style={{ fontFamily: "monospace" }} />
+                    </label>
+                    <label style={{ marginTop: "0.5rem" }}>Contraseña
+                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                        <input value={nuevoGrupo.password}
+                          onChange={e => setNuevoGrupo(p => ({ ...p, password: e.target.value }))}
+                          style={{ fontFamily: "monospace", flex: 1 }} />
+                        <button type="button" className="btn-secondary" style={{ whiteSpace: "nowrap" }}
+                          onClick={() => setNuevoGrupo(p => ({ ...p, password: genPassword() }))}>
+                          🔄 Generar
+                        </button>
+                      </div>
+                    </label>
+                  </div>
                   <div className="modal-actions">
                     <button type="submit" className="btn-primary">Crear Grupo</button>
                     <button type="button" className="btn-ghost" onClick={() => setNuevoGrupo(null)}>Cancelar</button>
@@ -463,11 +498,17 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                 <form onSubmit={cambiarPassword} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
                   <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:"0.85rem", fontWeight:600, flex: 1 }}>
                     Nueva contraseña (mín. 6 caracteres)
-                    <input type="text" value={nuevaPass} minLength={6} required
-                      placeholder="Nueva contraseña"
-                      onChange={e => setNuevaPass(e.target.value)} />
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      <input type="text" value={nuevaPass} minLength={6} required
+                        placeholder="Nueva contraseña" style={{ fontFamily: "monospace", flex: 1 }}
+                        onChange={e => setNuevaPass(e.target.value)} />
+                      <button type="button" className="btn-secondary" style={{ whiteSpace: "nowrap" }}
+                        onClick={() => setNuevaPass(genPassword())}>
+                        🔄 Generar
+                      </button>
+                    </div>
                   </label>
-                  <button type="submit" className="btn-secondary" style={{ whiteSpace: "nowrap" }}>🔄 Cambiar</button>
+                  <button type="submit" className="btn-primary" style={{ whiteSpace: "nowrap" }}>Guardar</button>
                 </form>
               </>
             ) : (
