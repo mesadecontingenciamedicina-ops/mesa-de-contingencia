@@ -279,10 +279,10 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
               <div key={g.id} className="grupo-card">
                 <div className="grupo-card-header">
                   <span className="grupo-nombre">{g.nombre}</span>
-                  <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                  <div className="grupo-card-actions">
                     <span className="grupo-badge">{g.miembros.length} miembro{g.miembros.length !== 1 ? "s" : ""}</span>
-                    <button className="btn-edit-grupo" onClick={() => abrirEdicion(g)}>✏️</button>
-                    <button className="btn-edit-grupo" style={{ background: "#dc2626" }} onClick={() => eliminarGrupo(g)} title="Eliminar grupo">🗑️</button>
+                    <button className="btn-edit-grupo" onClick={() => abrirEdicion(g)} title="Editar">✏️</button>
+                    <button className="btn-edit-grupo" style={{ background: "#dc2626" }} onClick={() => eliminarGrupo(g)} title="Eliminar">🗑️</button>
                   </div>
                 </div>
                 {g.descripcion && <p className="grupo-desc">{g.descripcion}</p>}
@@ -339,10 +339,15 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             {usuarioGrupo ? (
               <>
                 <div className="info-banner" style={{ marginBottom: "1rem" }}>
-                  Usuario actual: <strong>{usuarioGrupo.username}</strong>
-                  {" · "}<span style={{ color: usuarioGrupo.activo ? "#16a34a" : "#dc2626" }}>
-                    {usuarioGrupo.activo ? "Activo" : "Inactivo"}
-                  </span>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.2rem" }}>Usuario de acceso</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "1.15rem", fontWeight: 800, color: "var(--navy)", letterSpacing: "0.02em" }}>
+                      {usuarioGrupo.username}
+                    </span>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 600, color: usuarioGrupo.activo ? "#16a34a" : "#dc2626" }}>
+                      {usuarioGrupo.activo ? "● Activo" : "● Inactivo"}
+                    </span>
+                  </div>
                 </div>
                 <form onSubmit={cambiarPassword}>
                   <label style={{ display:"flex", flexDirection:"column", gap:4, fontSize:"0.85rem", fontWeight:600, marginBottom:"0.75rem" }}>

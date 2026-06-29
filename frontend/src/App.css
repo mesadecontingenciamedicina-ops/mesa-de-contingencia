@@ -331,7 +331,8 @@ fieldset legend { padding: 0 0.4rem; font-size: 0.8rem; font-weight: 600; color:
   cursor: pointer; font-weight: 600; transition: background 0.15s;
 }
 .btn-edit-grupo:hover { background: var(--gold-dark); }
-.grupo-card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.grupo-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.grupo-card-actions { display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0; }
 .grupo-nombre { font-weight: 700; font-size: 0.95rem; color: var(--navy); }
 .grupo-badge {
   background: var(--gold-light); color: var(--gold-dark);
