@@ -56,27 +56,42 @@ def _get_items(cur, solicitud_ids):
         return {}
     ids_str = ",".join(str(i) for i in solicitud_ids)
     cur.execute(f"""
-        SELECT solicitud_id, id, nombre, cantidad
+        SELECT solicitud_id, id, nombre, cantidad, insumo_id
         FROM {SCHEMA}.solicitud_items
         WHERE solicitud_id IN ({ids_str})
         ORDER BY id
     """)
     result = {}
     for r in cur.fetchall():
-        result.setdefault(r[0], []).append({"id": r[1], "nombre": r[2], "cantidad": r[3]})
+        result.setdefault(r[0], []).append({"id": r[1], "nombre": r[2], "cantidad": r[3], "insumo_id": r[4]})
     return result
+
+
+def _resolve_insumo_id(cur, nombre_upper, insumo_id=None):
+    """Return insumo_id: use provided, find by name, or create new."""
+    if insumo_id:
+        return insumo_id
+    cur.execute(f"SELECT id FROM {SCHEMA}.insumos WHERE nombre = %s", (nombre_upper,))
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    cur.execute(f"""
+        INSERT INTO {SCHEMA}.insumos (nombre) OUTPUT INSERTED.id VALUES (%s)
+    """, (nombre_upper,))
+    return cur.fetchone()[0]
 
 
 def _insert_items(cur, solicitud_id, items):
     for item in (items or []):
-        nombre = (item.get("nombre") or "").strip()
+        nombre = (item.get("nombre") or "").strip().upper()
         if not nombre:
             continue
-        cantidad = int(item.get("cantidad") or 1)
+        cantidad = max(1, int(item.get("cantidad") or 1))
+        insumo_id = _resolve_insumo_id(cur, nombre, item.get("insumo_id"))
         cur.execute(f"""
-            INSERT INTO {SCHEMA}.solicitud_items (solicitud_id, nombre, cantidad)
-            VALUES (%s, %s, %s)
-        """, (solicitud_id, nombre, cantidad))
+            INSERT INTO {SCHEMA}.solicitud_items (solicitud_id, insumo_id, nombre, cantidad)
+            VALUES (%s, %s, %s, %s)
+        """, (solicitud_id, insumo_id, nombre, cantidad))
 
 
 def _rows_with_items(cur, rows):

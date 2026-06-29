@@ -75,7 +75,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
       lng: s.lng || null,
       fecha_hora: s.fecha_hora ? s.fecha_hora.slice(0, 16) : nowLocal(),
       solicitante_id: s.solicitante_id || "",
-      items: (s.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad })),
+      items: (s.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, insumo_id: i.insumo_id || null })),
     });
   };
 
@@ -384,7 +384,7 @@ function DetalleRow({ label, value }) {
 }
 
 function TablaItems({ items, onChange }) {
-  const agregar = () => onChange([...items, { nombre: "", cantidad: 1 }]);
+  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, insumo_id: null }]);
   const actualizar = (i, campo, valor) =>
     onChange(items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it));
   const eliminar = (i) => onChange(items.filter((_, idx) => idx !== i));
@@ -412,7 +412,12 @@ function TablaItems({ items, onChange }) {
                 <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                   <td style={{ padding: "4px 6px" }}>
                     <InsumoInput value={item.nombre}
-                      onChange={val => actualizar(i, "nombre", val)} />
+                      onChange={({ nombre, insumo_id }) => {
+                        const copia = items.map((it, idx) =>
+                          idx === i ? { ...it, nombre, insumo_id: insumo_id ?? it.insumo_id } : it
+                        );
+                        onChange(copia);
+                      }} />
                   </td>
                   <td style={{ padding: "4px 6px" }}>
                     <input type="number" min={0} value={item.cantidad}
@@ -458,7 +463,7 @@ function InsumoInput({ value, onChange }) {
     const label = ins.concentracion
       ? `${ins.nombre} ${ins.forma_farmaceutica || ""} ${ins.concentracion}`.trim()
       : `${ins.nombre} ${ins.forma_farmaceutica || ""}`.trim();
-    onChange(label);
+    onChange({ nombre: label, insumo_id: ins.id });
     setSugerencias([]); setAbierto(false);
   };
 
@@ -472,7 +477,7 @@ function InsumoInput({ value, onChange }) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <input value={value} placeholder="Ej. Acetaminofén…"
-        onChange={e => { onChange(e.target.value); buscar(e.target.value); }}
+        onChange={e => { onChange({ nombre: e.target.value, insumo_id: null }); buscar(e.target.value); }}
         onFocus={() => { if (sugerencias.length) setAbierto(true); }}
         style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem" }} />
       {abierto && (
