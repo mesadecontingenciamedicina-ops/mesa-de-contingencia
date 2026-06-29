@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { validarFormMiembro } from "../utils/validaciones";
+import { validarFormMiembro, normalizarCedula } from "../utils/validaciones";
 
 const CARGOS = ["Profesor", "Estudiante", "BR", "Auxiliar", "Voluntario"];
 const FORM_VACIO = { nombre: "", cedula: "", telefono: "", tlf_alternativo: "", cargo: "", email: "", grupo_ids: [] };
@@ -172,7 +172,8 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             </Campo>
             <Campo label="N° de Cédula" error={tocado.cedula && errores.cedula}>
               <input value={form.cedula} placeholder="V-12345678"
-                onChange={e => cambiarCampo("cedula", e.target.value)} onBlur={() => marcarTocado("cedula")}
+                onChange={e => cambiarCampo("cedula", e.target.value)}
+                onBlur={() => { cambiarCampo("cedula", normalizarCedula(form.cedula)); marcarTocado("cedula"); }}
                 className={tocado.cedula && errores.cedula ? "input-err" : ""} />
             </Campo>
           </div>

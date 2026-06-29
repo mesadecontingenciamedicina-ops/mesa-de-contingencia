@@ -28,10 +28,19 @@ def validar_email(valor):
         return "Correo electrónico inválido."
     return None
 
+def normalizar_cedula(valor):
+    """Si solo tiene dígitos, agrega V- por defecto."""
+    if not valor:
+        return valor
+    limpio = valor.strip().replace(" ", "")
+    if re.fullmatch(r"\d{6,8}", limpio):
+        return f"V-{limpio}"
+    return limpio
+
 def validar_cedula(valor):
     if not valor or not valor.strip():
         return "La cédula es obligatoria."
-    limpio = valor.replace(" ", "")
+    limpio = normalizar_cedula(valor)
     if not re.fullmatch(r"[VvEe]-?\d{6,8}", limpio):
         return "Debe iniciar con V o E. Ej: V-12345678."
     return None

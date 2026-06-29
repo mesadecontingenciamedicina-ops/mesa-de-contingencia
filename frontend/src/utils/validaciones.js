@@ -30,9 +30,16 @@ export function validarEmail(valor) {
   return null;
 }
 
+export function normalizarCedula(valor) {
+  if (!valor) return valor;
+  const limpio = valor.trim().replace(/\s/g, "");
+  if (/^\d{6,8}$/.test(limpio)) return `V-${limpio}`;
+  return limpio;
+}
+
 export function validarCedula(valor) {
   if (!valor || !valor.trim()) return null; // opcional
-  const limpio = valor.replace(/\s/g, "");
+  const limpio = normalizarCedula(valor);
   if (!/^[VvEe]-?\d{6,8}$/.test(limpio))
     return "Debe iniciar con V o E. Ej: V-12345678.";
   return null;

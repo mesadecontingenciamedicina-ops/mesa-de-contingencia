@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from . import main_bp
 from ..db import get_connection
-from ..validaciones import validar_miembro
+from ..validaciones import validar_miembro, normalizar_cedula
 from ..auth import require_auth, get_current_user
 
 @main_bp.get("/api/miembros")
@@ -60,7 +60,7 @@ def crear_miembro():
             OUTPUT INSERTED.id
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (data["nombre"].strip(),
-              data.get("cedula") or None,
+              normalizar_cedula(data.get("cedula")) or None,
               data.get("telefono") or None,
               data.get("tlf_alternativo") or None,
               data.get("cargo") or None,
