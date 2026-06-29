@@ -100,6 +100,15 @@ export default function ModuloSolicitudes({ onDataChange }) {
     finally { setAutoasignando(p => ({ ...p, [solicitudId]: false })); }
   };
 
+  const eliminar = async (s) => {
+    if (!confirm(`¿Eliminar la solicitud "${s.descripcion.slice(0, 60)}…"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.eliminarSolicitud(s.id);
+      await reload(); onDataChange();
+      flash("Solicitud eliminada.");
+    } catch (err) { flash(err.message, false); }
+  };
+
   const asignar = async () => {
     if (!grupoSel) return flash("Selecciona un grupo.", false);
     try {
@@ -214,6 +223,10 @@ export default function ModuloSolicitudes({ onDataChange }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem", alignItems:"flex-end" }}
                      onClick={e => e.stopPropagation()}>
                   <button className="btn-edit-grupo" title="Editar" onClick={() => abrirEditar(s)}>✏️</button>
+                  {isAdmin && !s.actividad_estado && (
+                    <button className="btn-edit-grupo" style={{ background: "#dc2626" }} title="Eliminar"
+                      onClick={() => eliminar(s)}>🗑️</button>
+                  )}
                   {s.actividad_estado
                     ? <span className={`badge-estado badge-${s.actividad_estado.replace(/ /g,"-").toLowerCase()}`}>
                         {s.actividad_estado}

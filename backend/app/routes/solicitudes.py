@@ -183,6 +183,25 @@ def editar_solicitud(sol_id):
     return jsonify({"ok": True})
 
 
+@main_bp.delete("/api/solicitudes/<int:sol_id>")
+@require_admin
+def eliminar_solicitud(sol_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.actividades WHERE solicitud_id = %s", (sol_id,))
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return jsonify({"error": "Esta solicitud ya fue convertida en actividad y no puede eliminarse"}), 409
+    cur.execute(f"DELETE FROM {SCHEMA}.solicitud_items WHERE solicitud_id = %s", (sol_id,))
+    cur.execute(f"DELETE FROM {SCHEMA}.solicitudes WHERE id = %s", (sol_id,))
+    if cur.rowcount == 0:
+        conn.close()
+        return jsonify({"error": "Solicitud no encontrada"}), 404
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @main_bp.get("/api/solicitudes/mis-centro")
 def solicitudes_centro():
     user = get_current_user()

@@ -73,6 +73,7 @@ export const api = {
   getSolicitudes: () => req("GET", "/solicitudes"),
   crearSolicitud: (d) => req("POST", "/solicitudes", d),
   editarSolicitud: (id, d) => req("PUT", `/solicitudes/${id}`, d),
+  eliminarSolicitud: (id) => req("DELETE", `/solicitudes/${id}`),
 
   buscarInsumos: (q) => req("GET", `/insumos?q=${encodeURIComponent(q)}&limit=10`),
 
