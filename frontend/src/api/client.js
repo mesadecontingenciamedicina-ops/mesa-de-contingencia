@@ -59,6 +59,15 @@ export const api = {
   crearUsuarioGrupo: (id, d) => req("POST", `/grupos/${id}/usuario`, d),
   cambiarPasswordGrupo: (id, d) => req("PUT", `/grupos/${id}/usuario`, d),
 
+  getCentros: () => req("GET", "/centros"),
+  crearCentro: (d) => req("POST", "/centros", d),
+  editarCentro: (id, d) => req("PUT", `/centros/${id}`, d),
+  eliminarCentro: (id) => req("DELETE", `/centros/${id}`),
+  getUsuarioCentro: (id) => req("GET", `/centros/${id}/usuario`),
+  crearUsuarioCentro: (id, d) => req("POST", `/centros/${id}/usuario`, d),
+  cambiarPasswordCentro: (id, d) => req("PUT", `/centros/${id}/usuario`, d),
+  getSolicitudesCentro: () => req("GET", "/solicitudes/mis-centro"),
+
   getSolicitudesPendientes: () => req("GET", "/solicitudes/pendientes"),
   getSolicitudes: () => req("GET", "/solicitudes"),
   crearSolicitud: (d) => req("POST", "/solicitudes", d),

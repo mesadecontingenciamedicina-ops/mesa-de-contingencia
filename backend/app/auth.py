@@ -15,9 +15,11 @@ def login_user(username, password):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT u.id, u.username, u.password_hash, u.rol, u.grupo_id, g.nombre
+        SELECT u.id, u.username, u.password_hash, u.rol, u.grupo_id, g.nombre,
+               u.centro_id, c.nombre
         FROM MesaDeContingencia.usuarios u
         LEFT JOIN MesaDeContingencia.grupos_trabajo g ON g.id = u.grupo_id
+        LEFT JOIN MesaDeContingencia.centros_atencion c ON c.id = u.centro_id
         WHERE u.username = %s AND u.activo = 1
     """, (username,))
     row = cur.fetchone()
@@ -26,7 +28,8 @@ def login_user(username, password):
         return None
     user = {
         "id": row[0], "username": row[1], "rol": row[3],
-        "grupo_id": row[4], "grupo_nombre": row[5]
+        "grupo_id": row[4], "grupo_nombre": row[5],
+        "centro_id": row[6], "centro_nombre": row[7],
     }
     payload = {**user, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=TTL_HOURS)}
     token = jwt.encode(payload, SECRET, algorithm=ALGO)

@@ -4,19 +4,22 @@ import Login from "./components/Login";
 import ModuloMiembrosGrupos from "./components/ModuloMiembrosGrupos";
 import ModuloSolicitudes from "./components/ModuloSolicitudes";
 import ModuloActividades from "./components/ModuloActividades";
+import ModuloCentros from "./components/ModuloCentros";
+import VistaCentro from "./components/VistaCentro";
 import PanelNotificaciones from "./components/PanelNotificaciones";
 import { api } from "./api/client";
 import "./App.css";
 
 const TABS_ADMIN = [
-  { id: "miembros", label: "👥 Miembros y Grupos" },
-  { id: "solicitudes", label: "📥 Solicitudes" },
-  { id: "actividades", label: "📊 Actividades" },
+  { id: "miembros",   label: "👥 Miembros y Grupos" },
+  { id: "centros",    label: "🏥 Centros" },
+  { id: "solicitudes",label: "📥 Solicitudes" },
+  { id: "actividades",label: "📊 Actividades" },
 ];
 const TABS_GRUPO = [
-  { id: "miembros", label: "👤 Mi Grupo" },
-  { id: "solicitudes", label: "📥 Mis Solicitudes" },
-  { id: "actividades", label: "📊 Mis Actividades" },
+  { id: "miembros",   label: "👤 Mi Grupo" },
+  { id: "solicitudes",label: "📥 Mis Solicitudes" },
+  { id: "actividades",label: "📊 Mis Actividades" },
 ];
 
 export default function App() {
@@ -27,6 +30,7 @@ export default function App() {
   const [abrirActividadId, setAbrirActividadId] = useState(null);
 
   if (!user) return <Login />;
+  if (user.rol === "centro") return <VistaCentro />;
 
   const notifyChange = () => setActRefresh(v => v + 1);
   const isAdmin = user.rol === "admin";
@@ -73,6 +77,7 @@ export default function App() {
 
       <main className="main">
         {tab === "miembros"    && <ModuloMiembrosGrupos onDataChange={notifyChange} />}
+        {tab === "centros"     && <ModuloCentros />}
         {tab === "solicitudes" && <ModuloSolicitudes onDataChange={notifyChange} />}
         {tab === "actividades" && (
           <ModuloActividades

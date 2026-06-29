@@ -32,13 +32,14 @@ def _row_to_dict(r):
 
 SELECT_BASE = """
     SELECT s.id, s.descripcion, s.fecha_creacion,
-           g.id, g.nombre, a.estado,
+           g.id, COALESCE(g.nombre, c.nombre), a.estado,
            s.ubicacion, s.fecha_hora, s.prioridad, s.lat, s.lng,
            s.solicitante_id, m.nombre, m.telefono, m.email
     FROM MesaDeContingencia.solicitudes s
-    LEFT JOIN MesaDeContingencia.grupos_trabajo g  ON g.id = s.creado_por_grupo_id
-    LEFT JOIN MesaDeContingencia.actividades a     ON a.solicitud_id = s.id
-    LEFT JOIN MesaDeContingencia.miembros m        ON m.id = s.solicitante_id
+    LEFT JOIN MesaDeContingencia.grupos_trabajo g   ON g.id = s.creado_por_grupo_id
+    LEFT JOIN MesaDeContingencia.centros_atencion c ON c.id = s.creado_por_centro_id
+    LEFT JOIN MesaDeContingencia.actividades a      ON a.solicitud_id = s.id
+    LEFT JOIN MesaDeContingencia.miembros m         ON m.id = s.solicitante_id
 """
 ORDER = """ORDER BY
     CASE s.prioridad WHEN 'Alta' THEN 1 WHEN 'Normal' THEN 2 ELSE 3 END,
@@ -55,16 +56,17 @@ def crear_solicitud():
     prioridad = data.get("prioridad", "Normal")
     if prioridad not in PRIORIDADES:
         return jsonify({"error": f"Prioridad inválida. Opciones: {PRIORIDADES}"}), 400
-    grupo_id = user["grupo_id"] if user["rol"] == "grupo" else data.get("creado_por_grupo_id")
+    grupo_id = user["grupo_id"] if user["rol"] == "grupo" else (None if user["rol"] == "centro" else data.get("creado_por_grupo_id"))
+    centro_id = user["centro_id"] if user["rol"] == "centro" else None
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO MesaDeContingencia.solicitudes
-            (descripcion, creado_por_grupo_id, ubicacion, fecha_hora,
+            (descripcion, creado_por_grupo_id, creado_por_centro_id, ubicacion, fecha_hora,
              prioridad, lat, lng, solicitante_id)
         OUTPUT INSERTED.id, INSERTED.fecha_creacion
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, (descripcion, grupo_id,
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (descripcion, grupo_id, centro_id,
           data.get("ubicacion"), _parse_fecha(data.get("fecha_hora")),
           prioridad,
           data.get("lat"), data.get("lng"),
@@ -73,6 +75,22 @@ def crear_solicitud():
     conn.commit()
     conn.close()
     return jsonify({"id": row[0], "descripcion": descripcion, "fecha_creacion": str(row[1])}), 201
+
+@main_bp.get("/api/solicitudes/mis-centro")
+def solicitudes_centro():
+    from ..auth import require_auth
+    from flask import g as flask_g
+    user = get_current_user()
+    if not user or user["rol"] != "centro":
+        from flask import jsonify as _j
+        return _j({"error": "Acceso denegado"}), 403
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(SELECT_BASE + " WHERE s.creado_por_centro_id = %s " + ORDER, (user["centro_id"],))
+    rows = [_row_to_dict(r) for r in cur.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
 
 @main_bp.get("/api/solicitudes/pendientes")
 @require_admin
