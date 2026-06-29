@@ -117,25 +117,25 @@ def editar_miembro(miembro_id):
               data.get("cargo") or None,
               data.get("email") or None,
               miembro_id))
-        if cur.rowcount == 0:
-            conn.close()
-            return jsonify({"error": "Miembro no encontrado"}), 404
     except Exception as ex:
         conn.close()
         if "UQ_miembros_cedula" in str(ex) or "2601" in str(ex) or "2627" in str(ex):
             return jsonify({"error": f"Ya existe un miembro con la cédula {data.get('cedula')}."}), 409
-        raise
+        return jsonify({"error": f"Error al actualizar miembro: {ex}"}), 500
 
     # Admin puede reasignar grupos
     if user["rol"] == "admin":
         grupo_ids = data.get("grupo_ids") or []
-        if grupo_ids:
+        try:
             cur.execute(f"DELETE FROM {SCHEMA}.miembros_grupos WHERE miembro_id = %s", (miembro_id,))
             for gid in grupo_ids:
                 cur.execute(f"""
                     INSERT INTO {SCHEMA}.miembros_grupos (miembro_id, grupo_id)
                     VALUES (%s, %s)
                 """, (miembro_id, int(gid)))
+        except Exception as ex:
+            conn.close()
+            return jsonify({"error": f"Error al reasignar grupos: {ex}"}), 500
 
     conn.commit()
     conn.close()
