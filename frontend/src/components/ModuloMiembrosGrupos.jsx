@@ -17,11 +17,12 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState({});
   const [tocado, setTocado] = useState({});
-  const [editandoGrupo, setEditandoGrupo] = useState(null);
-  const [usuarioGrupo,  setUsuarioGrupo]  = useState(null);
-  const [nuevoUser,     setNuevoUser]     = useState({ username: "", password: "", password2: "" });
-  const [nuevaPass,     setNuevaPass]     = useState("");
-  const [nuevoGrupo,    setNuevoGrupo]    = useState(null); // null = cerrado, {} = abierto
+  const [editandoGrupo,   setEditandoGrupo]   = useState(null);
+  const [usuarioGrupo,    setUsuarioGrupo]    = useState(null);
+  const [nuevoUser,       setNuevoUser]       = useState({ username: "", password: "", password2: "" });
+  const [nuevaPass,       setNuevaPass]       = useState("");
+  const [nuevoGrupo,      setNuevoGrupo]      = useState(null);
+  const [editandoMiembro, setEditandoMiembro] = useState(null); // miembro en edición
 
   const reload = async () => {
     const [m, g] = await Promise.all([api.getMiembros(), api.getGrupos()]);
@@ -128,6 +129,35 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       await api.eliminarGrupo(g.id);
       await reload(); onDataChange();
       flash(`Grupo "${g.nombre}" eliminado.`);
+    } catch (err) { flash(err.message, false); }
+  };
+
+  // ── Editar / Eliminar miembro ──
+  const abrirEditarMiembro = (m) => {
+    const grupo_ids = miembros
+      .filter(x => x.id === m.id && x.grupo)
+      .map(x => x.grupo.id);
+    setEditandoMiembro({ ...m, grupo_ids: grupo_ids.length ? grupo_ids : (m.grupo ? [m.grupo.id] : []) });
+  };
+
+  const submitEditarMiembro = async (e) => {
+    e.preventDefault();
+    const errs = validarFormMiembro(editandoMiembro);
+    if (Object.keys(errs).length > 0) { flash("Corrige los errores del formulario.", false); return; }
+    try {
+      await api.editarMiembro(editandoMiembro.id, editandoMiembro);
+      setEditandoMiembro(null);
+      await reload(); onDataChange();
+      flash("Miembro actualizado.");
+    } catch (err) { flash(err.message, false); }
+  };
+
+  const eliminarMiembro = async (m) => {
+    if (!confirm(`¿Eliminar a "${m.nombre}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.eliminarMiembro(m.id);
+      await reload(); onDataChange();
+      flash(`Miembro "${m.nombre}" eliminado.`);
     } catch (err) { flash(err.message, false); }
   };
 
@@ -267,7 +297,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             : (
               <div className="table-wrap">
                 <table className="reg-table">
-                  <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Cargo</th><th>Teléfono</th><th>Tlf. Alt.</th><th>Email</th></tr></thead>
+                  <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Cargo</th><th>Teléfono</th><th>Tlf. Alt.</th><th>Email</th><th></th></tr></thead>
                   <tbody>
                     {miembros.map(m => (
                       <tr key={m.id}>
@@ -278,6 +308,12 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                         <td>{m.telefono || <span className="td-empty">—</span>}</td>
                         <td>{m.tlf_alternativo || <span className="td-empty">—</span>}</td>
                         <td>{m.email || <span className="td-empty">—</span>}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <button className="btn-edit-grupo" style={{ marginRight: 4 }}
+                            onClick={() => abrirEditarMiembro(m)} title="Editar">✏️</button>
+                          <button className="btn-edit-grupo" style={{ background: "#dc2626" }}
+                            onClick={() => eliminarMiembro(m)} title="Eliminar">🗑️</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -431,6 +467,84 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                 </form>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── Modal editar miembro ── */}
+      {editandoMiembro && (
+        <div className="overlay" onClick={() => setEditandoMiembro(null)}>
+          <div className="modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+            <h3>✏️ Editar Miembro</h3>
+            <form onSubmit={submitEditarMiembro} className="form" style={{ marginTop: "0.75rem" }}>
+              <div className="form-row">
+                <Campo label="Nombre completo *">
+                  <input required value={editandoMiembro.nombre}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, nombre: e.target.value }))} />
+                </Campo>
+                <Campo label="N° de Cédula">
+                  <input value={editandoMiembro.cedula || ""}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, cedula: e.target.value }))}
+                    onBlur={() => setEditandoMiembro(p => ({ ...p, cedula: normalizarCedula(p.cedula) }))}
+                    placeholder="V-12345678" />
+                </Campo>
+              </div>
+              <div className="form-row">
+                <Campo label="Teléfono principal *">
+                  <input required value={editandoMiembro.telefono || ""}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, telefono: e.target.value }))}
+                    placeholder="0412-1234567" />
+                </Campo>
+                <Campo label="Teléfono alternativo">
+                  <input value={editandoMiembro.tlf_alternativo || ""}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, tlf_alternativo: e.target.value }))}
+                    placeholder="Opcional" />
+                </Campo>
+              </div>
+              <div className="form-row">
+                <Campo label="Correo electrónico *">
+                  <input required type="email" value={editandoMiembro.email || ""}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, email: e.target.value }))} />
+                </Campo>
+                <Campo label="Cargo *">
+                  <select required value={editandoMiembro.cargo || ""}
+                    onChange={e => setEditandoMiembro(p => ({ ...p, cargo: e.target.value }))}>
+                    <option value="">Seleccionar…</option>
+                    {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Campo>
+              </div>
+              {isAdmin && (
+                <Campo label="Grupos de Trabajo *">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem", minHeight: "1.5rem" }}>
+                    {(editandoMiembro.grupo_ids || []).map(id => {
+                      const g = grupos.find(x => x.id === id);
+                      if (!g) return null;
+                      return (
+                        <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: "var(--navy)", color: "#fff", borderRadius: 20, padding: "3px 10px", fontSize: "0.8rem", fontWeight: 600 }}>
+                          {g.nombre}
+                          <button type="button" onClick={() => setEditandoMiembro(p => ({ ...p, grupo_ids: p.grupo_ids.filter(x => x !== id) }))}
+                            style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: "0.85rem", lineHeight: 1, padding: 0, opacity: 0.8 }}>✕</button>
+                        </span>
+                      );
+                    })}
+                    {!(editandoMiembro.grupo_ids || []).length && <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Sin grupos</span>}
+                  </div>
+                  <select value="" onChange={e => {
+                    const id = parseInt(e.target.value);
+                    if (!id) return;
+                    if (!(editandoMiembro.grupo_ids || []).includes(id))
+                      setEditandoMiembro(p => ({ ...p, grupo_ids: [...(p.grupo_ids || []), id] }));
+                  }} style={{ width: "100%" }}>
+                    <option value="">+ Agregar grupo…</option>
+                    {grupos.filter(g => !(editandoMiembro.grupo_ids || []).includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                  </select>
+                </Campo>
+              )}
+              <div className="modal-actions">
+                <button type="submit" className="btn-primary">Guardar cambios</button>
+                <button type="button" className="btn-ghost" onClick={() => setEditandoMiembro(null)}>Cancelar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

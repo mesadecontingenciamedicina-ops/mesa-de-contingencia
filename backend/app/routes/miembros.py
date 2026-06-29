@@ -81,3 +81,98 @@ def crear_miembro():
     conn.commit()
     conn.close()
     return jsonify({"id": new_id, "nombre": data["nombre"]}), 201
+
+
+@main_bp.put("/api/miembros/<int:miembro_id>")
+@require_auth
+def editar_miembro(miembro_id):
+    user = get_current_user()
+    data = request.get_json() or {}
+    errores = validar_miembro(data)
+    if errores:
+        return jsonify({"error": "Datos inválidos.", "campos": errores}), 400
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Grupo puede editar solo miembros de su grupo
+    if user["rol"] == "grupo":
+        cur.execute(f"""
+            SELECT 1 FROM {SCHEMA}.miembros_grupos
+            WHERE miembro_id = %s AND grupo_id = %s
+        """, (miembro_id, user["grupo_id"]))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"error": "Acceso denegado"}), 403
+
+    try:
+        cur.execute(f"""
+            UPDATE {SCHEMA}.miembros
+            SET nombre=%s, cedula=%s, telefono=%s, tlf_alternativo=%s, cargo=%s, email=%s
+            WHERE id=%s
+        """, (data["nombre"].strip(),
+              normalizar_cedula(data.get("cedula")) or None,
+              data.get("telefono") or None,
+              data.get("tlf_alternativo") or None,
+              data.get("cargo") or None,
+              data.get("email") or None,
+              miembro_id))
+        if cur.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Miembro no encontrado"}), 404
+    except Exception as ex:
+        conn.close()
+        if "UQ_miembros_cedula" in str(ex) or "2601" in str(ex) or "2627" in str(ex):
+            return jsonify({"error": f"Ya existe un miembro con la cédula {data.get('cedula')}."}), 409
+        raise
+
+    # Admin puede reasignar grupos
+    if user["rol"] == "admin":
+        grupo_ids = data.get("grupo_ids") or []
+        if grupo_ids:
+            cur.execute(f"DELETE FROM {SCHEMA}.miembros_grupos WHERE miembro_id = %s", (miembro_id,))
+            for gid in grupo_ids:
+                cur.execute(f"""
+                    INSERT INTO {SCHEMA}.miembros_grupos (miembro_id, grupo_id)
+                    VALUES (%s, %s)
+                """, (miembro_id, int(gid)))
+
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@main_bp.delete("/api/miembros/<int:miembro_id>")
+@require_auth
+def eliminar_miembro(miembro_id):
+    user = get_current_user()
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Grupo puede eliminar solo miembros de su grupo
+    if user["rol"] == "grupo":
+        cur.execute(f"""
+            SELECT 1 FROM {SCHEMA}.miembros_grupos
+            WHERE miembro_id = %s AND grupo_id = %s
+        """, (miembro_id, user["grupo_id"]))
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"error": "Acceso denegado"}), 403
+
+    # Verificar que no tenga actividades asignadas
+    cur.execute(f"""
+        SELECT COUNT(*) FROM {SCHEMA}.actividad_miembros WHERE miembro_id = %s
+    """, (miembro_id,))
+    if cur.fetchone()[0] > 0:
+        conn.close()
+        return jsonify({"error": "Este miembro tiene actividades asignadas y no puede eliminarse."}), 409
+
+    cur.execute(f"DELETE FROM {SCHEMA}.miembros_grupos WHERE miembro_id = %s", (miembro_id,))
+    cur.execute(f"DELETE FROM {SCHEMA}.miembros WHERE id = %s", (miembro_id,))
+    if cur.rowcount == 0:
+        conn.close()
+        return jsonify({"error": "Miembro no encontrado"}), 404
+
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
