@@ -177,13 +177,11 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                           </span>
                         ))
                       }
-                      {!isAdmin && (
-                        <button className="btn-asignar-miembros"
-                          title="Asignar miembros"
-                          onClick={e => abrirModalMiembros(act, e)}>
-                          ✏️
-                        </button>
-                      )}
+                      <button className="btn-asignar-miembros"
+                        title="Asignar miembros"
+                        onClick={e => abrirModalMiembros(act, e)}>
+                        ✏️
+                      </button>
                     </div>
 
                     <div className="kcard-actions" onClick={e => e.stopPropagation()}>
@@ -272,12 +270,10 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                 </div>
 
                 <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {!isAdmin && (
-                    <button className="btn-secondary"
-                      onClick={e => { abrirModalMiembros(detalle, e); setDetalle(null); }}>
-                      ✏️ Asignar miembros
-                    </button>
-                  )}
+                  <button className="btn-secondary"
+                    onClick={e => { abrirModalMiembros(detalle, e); setDetalle(null); }}>
+                    ✏️ Asignar miembros
+                  </button>
                   {ESTADOS.filter(e => e !== detalle.estado).map(e => (
                     <button key={e} className="btn-estado"
                       style={{ borderColor: COLOR[e], color: COLOR[e] }}
@@ -371,21 +367,42 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
             <h3>¿Quiénes trabajan en esto?</h3>
             <p className="modal-desc">{modalMiembros.solicitud.descripcion}</p>
 
-            <div className="popover-list" style={{ maxHeight: 300, overflowY: "auto", margin: "0.75rem 0" }}>
+            <div className="popover-list" style={{ maxHeight: 320, overflowY: "auto", margin: "0.75rem 0" }}>
               {miembros.length === 0
-                ? <p className="empty">No hay miembros registrados en tu grupo.</p>
-                : miembros.map(m => (
-                  <label key={m.id} className="popover-item">
-                    <input type="checkbox"
-                      checked={seleccion.has(m.id)}
-                      onChange={() => toggleMiembro(m.id)}
-                    />
-                    <span>
-                      {m.nombre}
-                      {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
-                    </span>
-                  </label>
-                ))
+                ? <p className="empty">No hay miembros registrados.</p>
+                : (() => {
+                    const sinGrupo = miembros.filter(m => !m.grupo);
+                    const conGrupo = miembros.filter(m => m.grupo);
+                    const renderItem = (m) => (
+                      <label key={m.id} className="popover-item">
+                        <input type="checkbox"
+                          checked={seleccion.has(m.id)}
+                          onChange={() => toggleMiembro(m.id)}
+                        />
+                        <span>
+                          {m.nombre}
+                          {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
+                          {isAdmin && m.grupo && <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: 6 }}>({m.grupo.nombre})</span>}
+                        </span>
+                      </label>
+                    );
+                    return (
+                      <>
+                        {sinGrupo.length > 0 && (
+                          <>
+                            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1 }}>PERSONAL ADMINISTRATIVO</div>
+                            {sinGrupo.map(renderItem)}
+                          </>
+                        )}
+                        {conGrupo.length > 0 && (
+                          <>
+                            {sinGrupo.length > 0 && <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1, marginTop: 4 }}>GRUPOS DE TRABAJO</div>}
+                            {conGrupo.map(renderItem)}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()
               }
             </div>
 

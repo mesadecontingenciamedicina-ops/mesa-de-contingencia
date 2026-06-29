@@ -33,7 +33,8 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
   const [nuevoUser,       setNuevoUser]       = useState({ username: "", password: "", password2: "" });
   const [nuevaPass,       setNuevaPass]       = useState("");
   const [nuevoGrupo,      setNuevoGrupo]      = useState(null);
-  const [editandoMiembro, setEditandoMiembro] = useState(null); // miembro en edición
+  const [editandoMiembro, setEditandoMiembro] = useState(null);
+  const [modalPA, setModalPA] = useState(null); // null | form-obj para Personal Admin
 
   const reload = async () => {
     const [m, g] = await Promise.all([api.getMiembros(), api.getGrupos()]);
@@ -63,7 +64,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       setTocado({ nombre: true, cedula: true, telefono: true, tlf_alternativo: true, email: true, cargo: true });
       return;
     }
-    if (isAdmin && (!form.grupo_ids || form.grupo_ids.length === 0)) {
+    if (isAdmin && (!form.grupo_ids || form.grupo_ids.length === 0) && tab !== "personal_admin") {
       setTocado(p => ({ ...p, grupo_ids: true }));
       flash("Selecciona al menos un grupo.", false); return;
     }
@@ -186,9 +187,10 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
   // ── Tabs según rol ──
   const tabsDisponibles = isAdmin
     ? [
-        { id: "miembros",  label: "👤 Miembros" },
-        { id: "registrar", label: "+ Agregar Miembro" },
-        { id: "grupos",    label: "🏷️ Grupos" },
+        { id: "miembros",       label: "👤 Miembros" },
+        { id: "personal_admin", label: "👔 Personal Admin" },
+        { id: "registrar",      label: "+ Agregar Miembro" },
+        { id: "grupos",         label: "🏷️ Grupos" },
       ]
     : [
         { id: "registrar", label: "+ Registrar Miembro" },
@@ -345,6 +347,110 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
               </div>
             )}
         </div>
+        );
+      })()}
+
+      {/* ── Personal Administrativo (solo admin) ── */}
+      {tab === "personal_admin" && isAdmin && (() => {
+        const personalAdmin = [...new Map(miembros.filter(m => !m.grupo).map(m => [m.id, m])).values()];
+        const FORM_PA = { nombre: "", cedula: "", telefono: "", tlf_alternativo: "", cargo: "", email: "", grupo_ids: [] };
+        return (
+          <div className="ver-registros">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
+                Personas del equipo administrativo asignables a actividades.
+              </p>
+              <button className="btn-primary" onClick={() => setModalPA({ ...FORM_PA })}>
+                + Nuevo
+              </button>
+            </div>
+
+            {personalAdmin.length === 0
+              ? <p className="empty">No hay personal administrativo registrado. Agrega el primero.</p>
+              : (
+                <div className="table-wrap">
+                  <table className="reg-table">
+                    <thead><tr><th>Nombre</th><th>Cargo</th><th>Teléfono</th><th>Email</th><th></th></tr></thead>
+                    <tbody>
+                      {personalAdmin.map(m => (
+                        <tr key={m.id}>
+                          <td><strong>{m.nombre}</strong></td>
+                          <td>{m.cargo ? <span className="cargo-chip">{m.cargo}</span> : <span className="td-empty">—</span>}</td>
+                          <td>{m.telefono || <span className="td-empty">—</span>}</td>
+                          <td>{m.email || <span className="td-empty">—</span>}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <button className="btn-edit-grupo" style={{ marginRight: 4 }}
+                              onClick={() => abrirEditarMiembro(m)} title="Editar">✏️</button>
+                            <button className="btn-edit-grupo" style={{ background: "#dc2626" }}
+                              onClick={() => eliminarMiembro(m)} title="Eliminar">🗑️</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
+
+            {/* Modal crear personal admin */}
+            {modalPA && (
+              <div className="overlay" onClick={() => setModalPA(null)}>
+                <div className="modal" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+                  <h3>👔 Nuevo Personal Administrativo</h3>
+                  <form className="form" style={{ marginTop: "0.75rem" }} onSubmit={async (e) => {
+                    e.preventDefault();
+                    const errs = validarFormMiembro(modalPA);
+                    if (Object.keys(errs).length > 0) { flash("Corrige los errores.", false); return; }
+                    try {
+                      await api.crearMiembro({ ...modalPA, grupo_ids: [] });
+                      setModalPA(null);
+                      await reload(); onDataChange();
+                      flash("Personal registrado correctamente.");
+                    } catch (err) { flash(err.message, false); }
+                  }}>
+                    <div className="form-row">
+                      <Campo label="Nombre completo *">
+                        <input required value={modalPA.nombre} placeholder="Ej. Juan Pérez"
+                          onChange={e => setModalPA(p => ({ ...p, nombre: e.target.value }))} />
+                      </Campo>
+                      <Campo label="N° de Cédula">
+                        <input value={modalPA.cedula || ""} placeholder="V-12345678"
+                          onChange={e => setModalPA(p => ({ ...p, cedula: e.target.value }))}
+                          onBlur={() => setModalPA(p => ({ ...p, cedula: normalizarCedula(p.cedula) }))} />
+                      </Campo>
+                    </div>
+                    <div className="form-row">
+                      <Campo label="Teléfono *">
+                        <input required value={modalPA.telefono || ""} placeholder="0412-1234567"
+                          onChange={e => setModalPA(p => ({ ...p, telefono: e.target.value.replace(/[^0-9\-]/g, "") }))} />
+                      </Campo>
+                      <Campo label="Teléfono alternativo">
+                        <input value={modalPA.tlf_alternativo || ""} placeholder="Opcional"
+                          onChange={e => setModalPA(p => ({ ...p, tlf_alternativo: e.target.value.replace(/[^0-9\-]/g, "") }))} />
+                      </Campo>
+                    </div>
+                    <div className="form-row">
+                      <Campo label="Cargo *">
+                        <select required value={modalPA.cargo || ""}
+                          onChange={e => setModalPA(p => ({ ...p, cargo: e.target.value }))}>
+                          <option value="">— Seleccionar —</option>
+                          {CARGOS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </Campo>
+                      <Campo label="Correo electrónico *">
+                        <input required type="email" value={modalPA.email || ""} placeholder="correo@ucv.ve"
+                          onChange={e => setModalPA(p => ({ ...p, email: e.target.value }))} />
+                      </Campo>
+                    </div>
+                    <div className="modal-actions">
+                      <button type="submit" className="btn-primary">Registrar</button>
+                      <button type="button" className="btn-ghost" onClick={() => setModalPA(null)}>Cancelar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
         );
       })()}
 

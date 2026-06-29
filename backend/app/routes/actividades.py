@@ -116,8 +116,6 @@ def actualizar_actividad(act_id):
 @require_auth
 def set_miembros_actividad(act_id):
     user = get_current_user()
-    if user["rol"] != "grupo":
-        return jsonify({"error": "Solo los grupos de trabajo pueden asignar miembros a actividades"}), 403
     data = request.get_json() or {}
     miembro_ids = data.get("miembro_ids", [])
     conn = get_connection()
