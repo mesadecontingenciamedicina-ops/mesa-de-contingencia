@@ -74,6 +74,8 @@ export const api = {
   crearSolicitud: (d) => req("POST", "/solicitudes", d),
   editarSolicitud: (id, d) => req("PUT", `/solicitudes/${id}`, d),
 
+  buscarInsumos: (q) => req("GET", `/insumos?q=${encodeURIComponent(q)}&limit=10`),
+
   getActividades: () => req("GET", "/actividades"),
   crearActividad: (d) => req("POST", "/actividades", d),
   crearActividadRapida: (d) => req("POST", "/actividades/rapida", d),

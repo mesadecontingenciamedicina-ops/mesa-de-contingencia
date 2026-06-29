@@ -385,10 +385,8 @@ function DetalleRow({ label, value }) {
 
 function TablaItems({ items, onChange }) {
   const agregar = () => onChange([...items, { nombre: "", cantidad: 1 }]);
-  const actualizar = (i, campo, valor) => {
-    const copia = items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it);
-    onChange(copia);
-  };
+  const actualizar = (i, campo, valor) =>
+    onChange(items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it));
   const eliminar = (i) => onChange(items.filter((_, idx) => idx !== i));
 
   return (
@@ -413,9 +411,8 @@ function TablaItems({ items, onChange }) {
               {items.map((item, i) => (
                 <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                   <td style={{ padding: "4px 6px" }}>
-                    <input value={item.nombre} placeholder="Ej. Camillas"
-                      onChange={e => actualizar(i, "nombre", e.target.value)}
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem" }} />
+                    <InsumoInput value={item.nombre}
+                      onChange={val => actualizar(i, "nombre", val)} />
                   </td>
                   <td style={{ padding: "4px 6px" }}>
                     <input type="number" min={0} value={item.cantidad}
@@ -435,6 +432,69 @@ function TablaItems({ items, onChange }) {
           </table>
         )
       }
+    </div>
+  );
+}
+
+function InsumoInput({ value, onChange }) {
+  const [sugerencias, setSugerencias] = useState([]);
+  const [abierto, setAbierto]         = useState(false);
+  const [timer, setTimer]             = useState(null);
+  const ref = useRef(null);
+
+  const buscar = (q) => {
+    if (timer) clearTimeout(timer);
+    if (!q || q.length < 2) { setSugerencias([]); setAbierto(false); return; }
+    setTimer(setTimeout(async () => {
+      try {
+        const res = await api.buscarInsumos(q);
+        setSugerencias(res);
+        setAbierto(res.length > 0);
+      } catch { setSugerencias([]); setAbierto(false); }
+    }, 250));
+  };
+
+  const seleccionar = (ins) => {
+    const label = ins.concentracion
+      ? `${ins.nombre} ${ins.forma_farmaceutica || ""} ${ins.concentracion}`.trim()
+      : `${ins.nombre} ${ins.forma_farmaceutica || ""}`.trim();
+    onChange(label);
+    setSugerencias([]); setAbierto(false);
+  };
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input value={value} placeholder="Ej. Acetaminofén…"
+        onChange={e => { onChange(e.target.value); buscar(e.target.value); }}
+        onFocus={() => { if (sugerencias.length) setAbierto(true); }}
+        style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem" }} />
+      {abierto && (
+        <ul style={{
+          position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999,
+          background: "#fff", border: "1px solid #d1d5db", borderRadius: 4,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.12)", margin: 0, padding: 0,
+          listStyle: "none", maxHeight: 220, overflowY: "auto",
+        }}>
+          {sugerencias.map(ins => (
+            <li key={ins.id}
+              onMouseDown={() => seleccionar(ins)}
+              style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#f0f4ff"}
+              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+              <span style={{ fontWeight: 600 }}>{ins.nombre}</span>
+              {ins.forma_farmaceutica && <span style={{ color: "#6b7280", marginLeft: 6 }}>{ins.forma_farmaceutica}</span>}
+              {ins.concentracion && <span style={{ color: "#9ca3af", marginLeft: 6, fontSize: "0.78rem" }}>{ins.concentracion}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
