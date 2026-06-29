@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:5000/api/miembros\" -Method POST -ContentType \"application/json\" -Body '{\"nombre\":\"Test\",\"telefono\":\"123\",\"cargo\":\"Dev\",\"email\":\"test@test.com\"}' 2>&1)"
+      "PowerShell(Invoke-RestMethod -Uri \"http://localhost:5000/api/miembros\" -Method POST -ContentType \"application/json\" -Body '{\"nombre\":\"Test\",\"telefono\":\"123\",\"cargo\":\"Dev\",\"email\":\"test@test.com\"}' 2>&1)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)"
     ]
   }
 }

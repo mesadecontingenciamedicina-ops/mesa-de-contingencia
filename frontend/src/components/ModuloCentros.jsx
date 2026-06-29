@@ -4,12 +4,12 @@ import { api } from "../api/client";
 const MapaPicker = lazy(() => import("./MapaPicker"));
 
 const CONTACTO_VACIO = { nombre: "", cargo: "", telefono: "", email: "" };
-const FORM_VACIO = { nombre: "", descripcion: "", direccion: "", lat: null, lng: null, contactos: [] };
+const FORM_VACIO = { nombre: "", descripcion: "", lat: null, lng: null, contactos: [] };
 
 export default function ModuloCentros() {
   const [centros,    setCentros]    = useState([]);
   const [msg,        setMsg]        = useState(null);
-  const [modalForm,  setModalForm]  = useState(null); // { modo:"nuevo"|"editar", data }
+  const [modalForm,  setModalForm]  = useState(null);
 
   const reload = async () => setCentros(await api.getCentros());
   useEffect(() => { reload(); }, []);
@@ -19,7 +19,6 @@ export default function ModuloCentros() {
     setTimeout(() => setMsg(null), 4000);
   };
 
-  // ── Guardar ───────────────────────────────────────────────────────────────
   const guardar = async (e) => {
     e.preventDefault();
     const { modo, data } = modalForm;
@@ -54,7 +53,6 @@ export default function ModuloCentros() {
     } catch (err) { flash(err.message, false); }
   };
 
-  // ── Helpers formulario ────────────────────────────────────────────────────
   const setField = (key, val) =>
     setModalForm(p => ({ ...p, data: { ...p.data, [key]: val } }));
 
@@ -78,7 +76,6 @@ export default function ModuloCentros() {
   const abrirNuevo  = () => setModalForm({ modo: "nuevo",  data: { ...FORM_VACIO, contactos: [] } });
   const abrirEditar = (c) => setModalForm({ modo: "editar", data: { ...c, contactos: c.contactos || [] } });
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="modulo">
       <h2>🏥 Centros de Atención</h2>
@@ -103,9 +100,7 @@ export default function ModuloCentros() {
                 </div>
 
                 {c.descripcion && <p className="grupo-desc">{c.descripcion}</p>}
-                {c.direccion   && <p className="grupo-desc" style={{ fontSize: "0.8rem" }}>📍 {c.direccion}</p>}
 
-                {/* Contactos */}
                 {c.contactos?.length > 0 && (
                   <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
                     {c.contactos.map(ct => (
@@ -119,7 +114,6 @@ export default function ModuloCentros() {
                   </div>
                 )}
 
-                {/* Credenciales — siempre visibles */}
                 {c.usuario && (
                   <div style={{
                     marginTop: "0.75rem", background: "#f0f6ff",
@@ -170,16 +164,9 @@ export default function ModuloCentros() {
                   onChange={e => setField("descripcion", e.target.value)}
                   placeholder="Opcional" />
               </label>
-              <label>Dirección
-                <input value={modalForm.data.direccion || ""}
-                  onChange={e => setField("direccion", e.target.value)}
-                  placeholder="Av. Principal, Caracas" />
-              </label>
 
               <div style={{ marginBottom: "0.75rem" }}>
-                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.35rem" }}>
-                  Ubicación en mapa{modalForm.data.lat ? ` (${modalForm.data.lat.toFixed(5)}, ${modalForm.data.lng.toFixed(5)})` : " (opcional)"}
-                </div>
+                <div style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.35rem" }}>Ubicación</div>
                 <Suspense fallback={<div style={{ height: 220, background: "#f0f0f0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#999" }}>Cargando mapa…</div>}>
                   <MapaPicker
                     lat={modalForm.data.lat} lng={modalForm.data.lng}
@@ -188,7 +175,6 @@ export default function ModuloCentros() {
                 </Suspense>
               </div>
 
-              {/* Contactos */}
               <div style={{ marginBottom: "0.5rem" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
                   <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Contactos</span>
