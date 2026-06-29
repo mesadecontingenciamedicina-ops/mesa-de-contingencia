@@ -52,6 +52,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       return;
     }
     if (isAdmin && (!form.grupo_ids || form.grupo_ids.length === 0)) {
+      setTocado(p => ({ ...p, grupo_ids: true }));
       flash("Selecciona al menos un grupo.", false); return;
     }
     try {
@@ -206,23 +207,49 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
           </div>
           {isAdmin && (
             <Campo label="Grupos de Trabajo *">
-              <div className="check-grid" style={{ marginTop: 4 }}>
-                {grupos.map(g => (
-                  <label key={g.id} className="check-item">
-                    <input type="checkbox"
-                      checked={(form.grupo_ids || []).includes(g.id)}
-                      onChange={e => {
-                        const ids = form.grupo_ids || [];
-                        setForm(p => ({
-                          ...p,
-                          grupo_ids: e.target.checked ? [...ids, g.id] : ids.filter(id => id !== g.id)
-                        }));
-                      }} />
-                    {g.nombre}
-                  </label>
-                ))}
+              {/* Pills de grupos seleccionados */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem", minHeight: "1.5rem" }}>
+                {(form.grupo_ids || []).map(id => {
+                  const g = grupos.find(x => x.id === id);
+                  if (!g) return null;
+                  return (
+                    <span key={id} style={{
+                      display: "inline-flex", alignItems: "center", gap: "0.3rem",
+                      background: "var(--navy)", color: "#fff",
+                      borderRadius: 20, padding: "3px 10px", fontSize: "0.8rem", fontWeight: 600,
+                    }}>
+                      {g.nombre}
+                      <button type="button" onClick={() =>
+                        setForm(p => ({ ...p, grupo_ids: p.grupo_ids.filter(x => x !== id) }))
+                      } style={{
+                        background: "none", border: "none", color: "#fff", cursor: "pointer",
+                        fontSize: "0.85rem", lineHeight: 1, padding: 0, opacity: 0.8,
+                      }}>✕</button>
+                    </span>
+                  );
+                })}
+                {(form.grupo_ids || []).length === 0 && (
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Sin grupos seleccionados</span>
+                )}
               </div>
-              {(form.grupo_ids || []).length === 0 && (
+              {/* Dropdown para agregar */}
+              <select
+                value=""
+                onChange={e => {
+                  const id = parseInt(e.target.value);
+                  if (!id) return;
+                  if (!(form.grupo_ids || []).includes(id))
+                    setForm(p => ({ ...p, grupo_ids: [...(p.grupo_ids || []), id] }));
+                }}
+                style={{ width: "100%" }}
+              >
+                <option value="">+ Agregar grupo…</option>
+                {grupos
+                  .filter(g => !(form.grupo_ids || []).includes(g.id))
+                  .map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)
+                }
+              </select>
+              {(form.grupo_ids || []).length === 0 && tocado.grupo_ids && (
                 <span className="campo-error">Selecciona al menos un grupo.</span>
               )}
             </Campo>
