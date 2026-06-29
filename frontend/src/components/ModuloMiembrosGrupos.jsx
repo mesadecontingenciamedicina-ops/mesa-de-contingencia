@@ -131,6 +131,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
   const tabsDisponibles = isAdmin
     ? [
         { id: "miembros",  label: "👤 Miembros" },
+        { id: "registrar", label: "+ Agregar Miembro" },
         { id: "grupos",    label: "🏷️ Grupos" },
       ]
     : [
@@ -200,9 +201,9 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             </Campo>
           </div>
           {isAdmin && (
-            <Campo label="Asignar al grupo">
-              <select value={form.grupo_id || ""} onChange={e => setForm(p => ({ ...p, grupo_id: e.target.value || null }))}>
-                <option value="">— Sin asignar —</option>
+            <Campo label="Grupo de Trabajo *">
+              <select required value={form.grupo_id || ""} onChange={e => setForm(p => ({ ...p, grupo_id: e.target.value || null }))}>
+                <option value="">— Seleccionar grupo —</option>
                 {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
               </select>
             </Campo>

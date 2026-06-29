@@ -42,14 +42,12 @@ def listar_miembros():
 @require_auth
 def crear_miembro():
     user = get_current_user()
-    if user["rol"] != "grupo":
-        return jsonify({"error": "Solo los grupos de trabajo pueden registrar miembros"}), 403
     data = request.get_json() or {}
     errores = validar_miembro(data)
     if errores:
         return jsonify({"error": "Datos inválidos.", "campos": errores}), 400
 
-    grupo_id = user["grupo_id"]
+    grupo_id = data.get("grupo_id") if user["rol"] == "admin" else user["grupo_id"]
 
     conn = get_connection()
     cur = conn.cursor()
