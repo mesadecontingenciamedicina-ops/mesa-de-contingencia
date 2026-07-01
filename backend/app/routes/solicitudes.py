@@ -191,6 +191,7 @@ def eliminar_solicitud(sol_id):
     if cur.fetchone()[0] > 0:
         conn.close()
         return jsonify({"error": "Esta solicitud ya fue convertida en actividad y no puede eliminarse"}), 409
+    cur.execute(f"DELETE FROM actividades WHERE solicitud_id = %s", (sol_id,))
     cur.execute(f"DELETE FROM solicitud_items WHERE solicitud_id = %s", (sol_id,))
     cur.execute(f"DELETE FROM solicitudes WHERE id = %s", (sol_id,))
     if cur.rowcount == 0:
