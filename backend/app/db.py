@@ -8,6 +8,4 @@ load_dotenv()
 DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
 
 def get_connection():
-    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-    conn.cursor().execute(f"SET search_path TO {DB_SCHEMA}")
-    return conn
+    return psycopg2.connect(os.getenv("DATABASE_URL"), options=f"-c search_path={DB_SCHEMA}")
