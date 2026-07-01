@@ -177,6 +177,8 @@ actividades ←N:M→ miembros (via actividad_miembros)
 actividades ←1:N→ actividad_comentarios
 usuarios ← grupo_id → grupos_trabajo
 usuarios ← centro_id → centros_atencion
+publicaciones ← grupo_id → grupos_trabajo
+publicaciones ←1:N→ publicacion_comentarios
 ```
 
 ---
