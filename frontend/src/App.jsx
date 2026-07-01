@@ -35,7 +35,9 @@ export default function App() {
   const notifyChange = () => setActRefresh(v => v + 1);
   const isAdmin = user.rol === "admin";
   const isPrivileged = isAdmin || user.es_coordinador;
-  const tabs = isPrivileged ? TABS_ADMIN : TABS_GRUPO;
+  const tabs = isPrivileged
+    ? (isAdmin ? TABS_ADMIN : TABS_ADMIN.filter(t => t.id !== "centros"))
+    : TABS_GRUPO;
 
   const handleLogout = async () => {
     try { await api.logout(); } catch {}
