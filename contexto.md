@@ -156,7 +156,7 @@ mesa-de-contingencia/
 | `solicitudes` | Solicitudes de emergencia | id, descripcion, creado_por_grupo_id, creado_por_centro_id, solicitante_id → miembros, ubicacion, fecha_hora, prioridad (Baja/Normal/Alta), lat, lng |
 | `insumos` | Catálogo de insumos médicos | id, codigo, nombre, forma_farmaceutica, concentracion, volumen_peso, disponibilidad, prioridad, precio_referencial |
 | `solicitud_items` | Items de cada solicitud | id, solicitud_id → solicitudes, insumo_id → insumos, nombre, cantidad |
-| `actividades` | Tareas Kanban derivadas de solicitudes | id, solicitud_id → solicitudes, grupo_id → grupos, estado (Por ejecutar/En ejecución/Ejecutado) |
+| `actividades` | Tareas Kanban derivadas de solicitudes | id, solicitud_id → solicitudes, grupo_id → grupos, estado, archivada (soft-delete) |
 | `actividad_miembros` | Miembros asignados a actividades | actividad_id, miembro_id (PK compuesta) |
 | `actividad_comentarios` | Comentarios en actividades | id, actividad_id, autor_username, autor_rol, grupo_id, texto |
 | `notificaciones` | Notificaciones push internas | id, para_rol, para_grupo_id, actividad_id, comentario_id, texto, leida |
@@ -264,6 +264,7 @@ usuarios ← centro_id → centros_atencion
 | POST | `/api/actividades/rapida` | Auth | Crear solicitud + actividad en un paso |
 | PUT | `/api/actividades/:id` | Auth | Cambiar estado (Por ejecutar/En ejecución/Ejecutado) |
 | PUT | `/api/actividades/:id/miembros` | Auth | Asignar miembros a actividad |
+| DELETE | `/api/actividades/:id` | Auth | Soft-delete (archiva la actividad y libera la solicitud) |
 
 ### Comentarios y Notificaciones
 | Método | Ruta | Auth | Descripción |

@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS actividades (
     solicitud_id        INT NOT NULL REFERENCES solicitudes(id),
     grupo_id            INT NOT NULL REFERENCES grupos_trabajo(id),
     estado              VARCHAR(50) NOT NULL DEFAULT 'Por ejecutar',
+    archivada           BOOLEAN DEFAULT FALSE,
     fecha_asignacion    TIMESTAMPTZ DEFAULT NOW(),
     fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT ck_act_estado CHECK (estado IN ('Por ejecutar', 'En ejecución', 'Ejecutado'))

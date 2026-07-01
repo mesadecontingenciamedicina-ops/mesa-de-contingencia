@@ -212,7 +212,19 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                 padding: "3px 10px", borderRadius: 12, fontSize: "0.78rem", fontWeight: 700,
                 background: COLOR[detalle.estado] + "22", color: COLOR[detalle.estado]
               }}>{detalle.estado}</span>
-              <button className="btn-ghost" onClick={() => setDetalle(null)}>✕</button>
+              <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                <button className="btn-ghost" title="Archivar actividad"
+                  style={{ color: "#dc2626", fontSize: "1rem" }}
+                  onClick={async () => {
+                    if (!confirm("¿Archivar esta actividad? Desaparecerá del tablero y la solicitud quedará libre para reasignar.")) return;
+                    try {
+                      await api.archivarActividad(detalle.id);
+                      setDetalle(null);
+                      await reload();
+                    } catch (err) { alert(err.message); }
+                  }}>🗑️</button>
+                <button className="btn-ghost" onClick={() => setDetalle(null)}>✕</button>
+              </div>
             </div>
 
             {/* Tabs */}

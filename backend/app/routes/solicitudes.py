@@ -41,7 +41,7 @@ def _select_base():
     FROM solicitudes s
     LEFT JOIN grupos_trabajo g   ON g.id = s.creado_por_grupo_id
     LEFT JOIN centros_atencion c ON c.id = s.creado_por_centro_id
-    LEFT JOIN actividades a      ON a.solicitud_id = s.id
+    LEFT JOIN actividades a      ON a.solicitud_id = s.id AND a.archivada = FALSE
     LEFT JOIN miembros m         ON m.id = s.solicitante_id
 """
 
@@ -187,7 +187,7 @@ def editar_solicitud(sol_id):
 def eliminar_solicitud(sol_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(f"SELECT COUNT(*) FROM actividades WHERE solicitud_id = %s", (sol_id,))
+    cur.execute(f"SELECT COUNT(*) FROM actividades WHERE solicitud_id = %s AND archivada = FALSE", (sol_id,))
     if cur.fetchone()[0] > 0:
         conn.close()
         return jsonify({"error": "Esta solicitud ya fue convertida en actividad y no puede eliminarse"}), 409
@@ -220,7 +220,7 @@ def solicitudes_pendientes():
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(_select_base() + f"""
-        WHERE NOT EXISTS (SELECT 1 FROM actividades a2 WHERE a2.solicitud_id = s.id)
+        WHERE NOT EXISTS (SELECT 1 FROM actividades a2 WHERE a2.solicitud_id = s.id AND a2.archivada = FALSE)
     """ + ORDER)
     rows = _rows_with_items(cur, cur.fetchall())
     conn.close()

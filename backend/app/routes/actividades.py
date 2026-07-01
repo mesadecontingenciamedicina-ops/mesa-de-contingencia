@@ -24,7 +24,7 @@ def crear_actividad():
         if not row or row[0] != user["grupo_id"]:
             conn.close()
             return jsonify({"error": "Solo puedes autoasignarte tus propias solicitudes"}), 403
-    cur.execute(f"SELECT id FROM actividades WHERE solicitud_id = %s", (solicitud_id,))
+    cur.execute(f"SELECT id FROM actividades WHERE solicitud_id = %s AND archivada = FALSE", (solicitud_id,))
     if cur.fetchone():
         conn.close()
         return jsonify({"error": "Esta solicitud ya fue asignada"}), 409
@@ -152,9 +152,9 @@ def listar_actividades():
         LEFT JOIN miembros ms ON ms.id = s.solicitante_id
     """
     if is_privileged(user):
-        cur.execute(base + " ORDER BY a.fecha_actualizacion DESC")
+        cur.execute(base + " WHERE a.archivada = FALSE ORDER BY a.fecha_actualizacion DESC")
     else:
-        cur.execute(base + " WHERE a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", (user["grupo_id"],))
+        cur.execute(base + " WHERE a.archivada = FALSE AND a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", (user["grupo_id"],))
     actividades = {r[0]: {
         "id": r[0], "estado": r[1],
         "fecha_asignacion": str(r[2]), "fecha_actualizacion": str(r[3]),
@@ -185,3 +185,24 @@ def listar_actividades():
 
     conn.close()
     return jsonify(list(actividades.values()))
+
+
+@main_bp.delete("/api/actividades/<int:act_id>")
+@require_auth
+def archivar_actividad(act_id):
+    """Soft-delete: marca la actividad como archivada."""
+    user = get_current_user()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(f"SELECT grupo_id FROM actividades WHERE id = %s AND archivada = FALSE", (act_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Actividad no encontrada"}), 404
+    if not is_privileged(user) and user["rol"] == "grupo" and row[0] != user["grupo_id"]:
+        conn.close()
+        return jsonify({"error": "Acceso denegado"}), 403
+    cur.execute(f"UPDATE actividades SET archivada = TRUE WHERE id = %s", (act_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
