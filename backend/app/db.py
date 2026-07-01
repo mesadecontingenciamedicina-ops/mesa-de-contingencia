@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Ya no usamos SCHEMA = "MesaDeContingencia" porque en Postgres usaremos "public" por defecto.
+DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
 
 def get_connection():
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
-
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    conn.cursor().execute(f"SET search_path TO {DB_SCHEMA}")
+    return conn
