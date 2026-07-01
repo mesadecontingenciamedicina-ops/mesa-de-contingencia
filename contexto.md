@@ -303,8 +303,8 @@ publicaciones ←1:N→ publicacion_comentarios
 ### Componentes principales
 | Componente | Función |
 |-----------|---------|
-| `Login.jsx` | Pantalla de login con logo FacMed UCV |
-| `ModuloMiembrosGrupos.jsx` | CRUD de miembros + CRUD de grupos. Admin ve todos, grupo ve solo los suyos. Modal con validaciones. |
+| `Login.jsx` | Pantalla de login con logo FacMed UCV y botón SVG para mostrar/ocultar contraseña |
+| `ModuloMiembrosGrupos.jsx` | (~37KB) Gestión de miembros y grupos. Admin ve todos, grupo ve solo los suyos. Modal con validaciones. |
 | `ModuloCentros.jsx` | CRUD de centros de atención con contactos y mapa. Solo admin. |
 | `ModuloSolicitudes.jsx` | CRUD de solicitudes con items/insumos, selector de solicitante, mapa. Prioridad Baja/Normal/Alta. |
 | `ModuloActividades.jsx` | Tablero Kanban con 3 columnas. Cambio de estado drag-like (botones). Comentarios. Asignación de miembros. |
