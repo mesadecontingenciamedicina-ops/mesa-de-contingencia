@@ -160,6 +160,7 @@ mesa-de-contingencia/
 | `actividad_miembros` | Miembros asignados a actividades | actividad_id, miembro_id (PK compuesta) |
 | `actividad_comentarios` | Comentarios en actividades | id, actividad_id, autor_username, autor_rol, grupo_id, texto |
 | `notificaciones` | Notificaciones push internas | id, para_rol, para_grupo_id, actividad_id, comentario_id, texto, leida |
+| `publicaciones` | Avisos/noticias generales | id, descripcion, autor_username, grupo_id, eliminada, fecha_creacion |
 
 ### Relaciones clave
 ```
@@ -275,13 +276,20 @@ usuarios ← centro_id → centros_atencion
 | PUT | `/api/notificaciones/:id/leer` | Auth | Marcar notificación como leída |
 | POST | `/api/notificaciones/leer-todas` | Auth | Marcar todas como leídas |
 
+### Publicaciones
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/publicaciones` | Auth | Listar publicaciones activas |
+| POST | `/api/publicaciones` | Privileged | Crear publicación |
+| DELETE | `/api/publicaciones/:id` | Privileged | Eliminar publicación (soft-delete) |
+
 ---
 
 ## 8. Frontend — Estructura de Vistas
 
 ### Navegación por rol
-- **Admin**: Tabs → Miembros y Grupos | Centros | Solicitudes | Actividades
-- **Grupo**: Tabs → Mi Grupo | Mis Solicitudes | Mis Actividades
+- **Admin**: Tabs → Miembros y Grupos | Publicaciones | Centros | Solicitudes | Actividades
+- **Grupo**: Tabs → Mi Grupo | Publicaciones | Mis Solicitudes | Mis Actividades
 - **Centro**: Renderiza `VistaCentro.jsx` directamente (sin tabs de admin)
 
 ### Componentes principales
@@ -292,6 +300,7 @@ usuarios ← centro_id → centros_atencion
 | `ModuloCentros.jsx` | CRUD de centros de atención con contactos y mapa. Solo admin. |
 | `ModuloSolicitudes.jsx` | CRUD de solicitudes con items/insumos, selector de solicitante, mapa. Prioridad Baja/Normal/Alta. |
 | `ModuloActividades.jsx` | Tablero Kanban con 3 columnas. Cambio de estado drag-like (botones). Comentarios. Asignación de miembros. |
+| `ModuloPublicaciones.jsx` | Tablón de anuncios generales. Visible para todos excepto centros. Solo admin/coordinador pueden publicar/eliminar. |
 | `VistaCentro.jsx` | Vista completa para centros: pueden crear solicitudes, ver su mapa, ver insumos. |
 | `PanelNotificaciones.jsx` | Dropdown de notificaciones con polling, marcar como leídas, navegar a actividad. |
 | `MapaPicker.jsx` | Componente Leaflet para seleccionar lat/lng en un mapa interactivo. |

@@ -90,4 +90,8 @@ export const api = {
   getNotificaciones: () => req("GET", "/notificaciones"),
   marcarLeida: (id) => req("PUT", `/notificaciones/${id}/leer`),
   leerTodas: () => req("POST", "/notificaciones/leer-todas"),
+
+  getPublicaciones: () => req("GET", "/publicaciones"),
+  crearPublicacion: (d) => req("POST", "/publicaciones", d),
+  eliminarPublicacion: (id) => req("DELETE", `/publicaciones/${id}`),
 };

@@ -139,6 +139,16 @@ CREATE TABLE IF NOT EXISTS actividad_comentarios (
     fecha_creacion  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Publicaciones / Noticias
+CREATE TABLE IF NOT EXISTS publicaciones (
+    id              SERIAL PRIMARY KEY,
+    descripcion     TEXT NOT NULL,
+    autor_username  VARCHAR(100) NOT NULL,
+    grupo_id        INT REFERENCES grupos_trabajo(id) ON DELETE SET NULL,
+    eliminada       BOOLEAN DEFAULT FALSE,
+    fecha_creacion  TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Notificaciones
 CREATE TABLE IF NOT EXISTS notificaciones (
     id             SERIAL PRIMARY KEY,

@@ -7,17 +7,20 @@ import ModuloActividades from "./components/ModuloActividades";
 import ModuloCentros from "./components/ModuloCentros";
 import VistaCentro from "./components/VistaCentro";
 import PanelNotificaciones from "./components/PanelNotificaciones";
+import ModuloPublicaciones from "./components/ModuloPublicaciones";
 import { api } from "./api/client";
 import "./App.css";
 
 const TABS_ADMIN = [
   { id: "miembros",   label: "👥 Miembros y Grupos" },
+  { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "centros",    label: "🏥 Centros" },
   { id: "solicitudes",label: "📥 Solicitudes" },
   { id: "actividades",label: "📊 Actividades" },
 ];
 const TABS_GRUPO = [
   { id: "miembros",   label: "👤 Mi Grupo" },
+  { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "solicitudes",label: "📥 Mis Solicitudes" },
   { id: "actividades",label: "📊 Mis Actividades" },
 ];
@@ -45,6 +48,10 @@ export default function App() {
   };
 
   const irAActividad = (actividadId) => {
+    if (!actividadId) {
+      setTab("publicaciones");
+      return;
+    }
     setTab("actividades");
     setAbrirActividadId(actividadId);
   };
@@ -80,6 +87,7 @@ export default function App() {
 
       <main className="main">
         {tab === "miembros"    && <ModuloMiembrosGrupos onDataChange={notifyChange} />}
+        {tab === "publicaciones" && <ModuloPublicaciones />}
         {tab === "centros"     && <ModuloCentros />}
         {tab === "solicitudes" && <ModuloSolicitudes onDataChange={notifyChange} />}
         {tab === "actividades" && (
