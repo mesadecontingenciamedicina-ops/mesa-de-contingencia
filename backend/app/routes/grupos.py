@@ -112,7 +112,7 @@ def crear_grupo():
             break
         username = f"{base}_{suffix}"
         suffix += 1
-    h = generate_password_hash(password)
+    h = generate_password_hash(password, method="pbkdf2:sha256")
     cur.execute(f"""
         INSERT INTO usuarios (username, password_hash, password_plain, rol, grupo_id, activo)
         VALUES (%s, %s, %s, 'grupo', %s, TRUE)
@@ -211,7 +211,7 @@ def crear_usuario_grupo(grupo_id):
     if cur.fetchone():
         conn.close()
         return jsonify({"error": "Este grupo ya tiene un usuario asignado"}), 409
-    h = generate_password_hash(password)
+    h = generate_password_hash(password, method="pbkdf2:sha256")
     cur.execute(f"""
         INSERT INTO usuarios (username, password_hash, password_plain, rol, grupo_id, activo)
         VALUES (%s, %s, %s, 'grupo', %s, TRUE) RETURNING id
@@ -231,7 +231,7 @@ def cambiar_password_grupo(grupo_id):
         return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
     conn = get_connection()
     cur = conn.cursor()
-    h = generate_password_hash(password)
+    h = generate_password_hash(password, method="pbkdf2:sha256")
     cur.execute(f"""
         UPDATE usuarios SET password_hash = %s, password_plain = %s
         WHERE grupo_id = %s AND rol = 'grupo'

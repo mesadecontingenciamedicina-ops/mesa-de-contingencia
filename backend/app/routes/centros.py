@@ -86,7 +86,7 @@ def crear_centro():
           data.get("lat") or None, data.get("lng") or None))
     new_id = cur.fetchone()[0]
 
-    h = generate_password_hash(password)
+    h = generate_password_hash(password, method="pbkdf2:sha256")
     cur.execute(f"""
         INSERT INTO usuarios (username, password_hash, password_plain, rol, centro_id, activo)
         VALUES (%s, %s, %s, 'centro', %s, TRUE) RETURNING id
@@ -165,7 +165,7 @@ def eliminar_centro(centro_id):
 @require_admin
 def regenerar_password_centro(centro_id):
     password = _gen_password()
-    h = generate_password_hash(password)
+    h = generate_password_hash(password, method="pbkdf2:sha256")
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(f"""
