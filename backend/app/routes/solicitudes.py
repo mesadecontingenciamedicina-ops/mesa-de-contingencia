@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from . import main_bp
 from ..db import get_connection
-from ..auth import require_auth, require_admin, get_current_user
+from ..auth import require_auth, require_admin, require_privileged, is_privileged, get_current_user
 from datetime import datetime
 
 def _parse_fecha(valor):
@@ -183,7 +183,7 @@ def editar_solicitud(sol_id):
 
 
 @main_bp.delete("/api/solicitudes/<int:sol_id>")
-@require_admin
+@require_privileged
 def eliminar_solicitud(sol_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -215,7 +215,7 @@ def solicitudes_centro():
 
 
 @main_bp.get("/api/solicitudes/pendientes")
-@require_admin
+@require_privileged
 def solicitudes_pendientes():
     conn = get_connection()
     cur = conn.cursor()
@@ -232,7 +232,7 @@ def listar_solicitudes():
     user = get_current_user()
     conn = get_connection()
     cur = conn.cursor()
-    if user["rol"] == "admin":
+    if is_privileged(user):
         cur.execute(_select_base() + ORDER)
     else:
         cur.execute(_select_base() + " WHERE s.creado_por_grupo_id = %s " + ORDER, (user["grupo_id"],))

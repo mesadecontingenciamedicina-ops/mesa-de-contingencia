@@ -17,6 +17,7 @@ const COLOR = {
 export default function ModuloActividades({ refresh, abrirActividadId, onActividadAbierta }) {
   const { user } = useAuth();
   const isAdmin = user.rol === "admin";
+  const isPrivileged = isAdmin || user.es_coordinador;
 
   const [actividades,   setActividades]   = useState([]);
   const [miembros,      setMiembros]      = useState([]);
@@ -125,7 +126,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
       <div className="act-header">
         <h2>📊 Tablero de Actividades</h2>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
-          {(isAdmin || grupos.length > 1) && (
+          {(isPrivileged || grupos.length > 1) && (
             <div className="filtro-grupo">
               <label htmlFor="filtro-sel">Filtrar por grupo:</label>
               <select id="filtro-sel" value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)}>
@@ -308,7 +309,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                   placeholder="¿Qué hay que hacer?" />
               </label>
 
-              {isAdmin && (
+              {isPrivileged && (
                 <label>Grupo de Trabajo *
                   <select required value={modalRapida.grupo_id}
                     onChange={e => setModalRapida(p => ({ ...p, grupo_id: e.target.value }))}>
@@ -382,7 +383,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                         <span>
                           {m.nombre}
                           {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
-                          {isAdmin && m.grupo && <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: 6 }}>({m.grupo.nombre})</span>}
+                          {isPrivileged && m.grupo && <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: 6 }}>({m.grupo.nombre})</span>}
                         </span>
                       </label>
                     );

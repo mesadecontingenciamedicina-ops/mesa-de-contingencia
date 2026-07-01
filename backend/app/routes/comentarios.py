@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from . import main_bp
 from ..db import get_connection
-from ..auth import require_auth, get_current_user
+from ..auth import require_auth, is_privileged, get_current_user
 
 @main_bp.get("/api/actividades/<int:act_id>/comentarios")
 @require_auth
@@ -56,7 +56,7 @@ def crear_comentario(act_id):
         VALUES ('admin', NULL, %s, %s, %s)
     """, (act_id, nuevo_id, notif_texto))
 
-    if user["rol"] == "admin":
+    if user["rol"] == "admin" or (user["rol"] == "grupo" and user.get("grupo_id") != grupo_actividad_id):
         cur.execute(f"""
             INSERT INTO notificaciones
                 (para_rol, para_grupo_id, actividad_id, comentario_id, texto)
@@ -75,13 +75,21 @@ def get_notificaciones():
     user = get_current_user()
     conn = get_connection()
     cur = conn.cursor()
-    if user["rol"] == "admin":
-        cur.execute(f"""
-            SELECT id, actividad_id, texto, leida, fecha_creacion
-            FROM notificaciones
-            WHERE para_rol = 'admin'
-            ORDER BY fecha_creacion DESC
-        """)
+    if is_privileged(user):
+        if user["rol"] == "admin":
+            cur.execute(f"""
+                SELECT id, actividad_id, texto, leida, fecha_creacion
+                FROM notificaciones
+                WHERE para_rol = 'admin'
+                ORDER BY fecha_creacion DESC
+            """)
+        else:
+            cur.execute(f"""
+                SELECT id, actividad_id, texto, leida, fecha_creacion
+                FROM notificaciones
+                WHERE para_rol = 'admin' OR (para_rol = 'grupo' AND para_grupo_id = %s)
+                ORDER BY fecha_creacion DESC
+            """, (user["grupo_id"],))
     else:
         cur.execute(f"""
             SELECT id, actividad_id, texto, leida, fecha_creacion
@@ -112,8 +120,14 @@ def leer_todas():
     user = get_current_user()
     conn = get_connection()
     cur = conn.cursor()
-    if user["rol"] == "admin":
-        cur.execute(f"UPDATE notificaciones SET leida = TRUE WHERE para_rol = 'admin'")
+    if is_privileged(user):
+        if user["rol"] == "admin":
+            cur.execute(f"UPDATE notificaciones SET leida = TRUE WHERE para_rol = 'admin'")
+        else:
+            cur.execute(f"""
+                UPDATE notificaciones SET leida = TRUE
+                WHERE para_rol = 'admin' OR (para_rol = 'grupo' AND para_grupo_id = %s)
+            """, (user["grupo_id"],))
     else:
         cur.execute(f"""
             UPDATE notificaciones SET leida = TRUE

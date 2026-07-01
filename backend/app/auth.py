@@ -16,7 +16,7 @@ def login_user(username, password):
     cur = conn.cursor()
     cur.execute("""
         SELECT u.id, u.username, u.password_hash, u.rol, u.grupo_id, g.nombre,
-               u.centro_id, c.nombre, c.lat, c.lng, c.direccion
+               u.centro_id, c.nombre, c.lat, c.lng, c.direccion, g.es_coordinador
         FROM usuarios u
         LEFT JOIN grupos_trabajo g ON g.id = u.grupo_id
         LEFT JOIN centros_atencion c ON c.id = u.centro_id
@@ -34,6 +34,7 @@ def login_user(username, password):
         "centro_lat": float(row[8]) if row[8] is not None else None,
         "centro_lng": float(row[9]) if row[9] is not None else None,
         "centro_direccion": row[10],
+        "es_coordinador": bool(row[11]) if row[11] is not None else False,
     }
     payload = {**user, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=TTL_HOURS)}
     token = jwt.encode(payload, SECRET, algorithm=ALGO)
@@ -76,6 +77,27 @@ def require_admin(f):
         if not user:
             return jsonify({"error": "No autenticado"}), 401
         if user["rol"] != "admin":
+            return jsonify({"error": "Acceso denegado"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def is_privileged(user):
+    """Admin o grupo coordinador"""
+    if not user:
+        return False
+    if user.get("rol") == "admin":
+        return True
+    return user.get("rol") == "grupo" and user.get("es_coordinador", False)
+
+
+def require_privileged(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "No autenticado"}), 401
+        if not is_privileged(user):
             return jsonify({"error": "Acceso denegado"}), 403
         return f(*args, **kwargs)
     return decorated

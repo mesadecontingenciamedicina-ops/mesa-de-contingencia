@@ -34,7 +34,8 @@ export default function App() {
 
   const notifyChange = () => setActRefresh(v => v + 1);
   const isAdmin = user.rol === "admin";
-  const tabs = isAdmin ? TABS_ADMIN : TABS_GRUPO;
+  const isPrivileged = isAdmin || user.es_coordinador;
+  const tabs = isPrivileged ? TABS_ADMIN : TABS_GRUPO;
 
   const handleLogout = async () => {
     try { await api.logout(); } catch {}
@@ -59,8 +60,8 @@ export default function App() {
           </div>
           <div className="header-user">
             <PanelNotificaciones onAbrirActividad={irAActividad} />
-            <span className={`role-badge ${isAdmin ? "role-admin" : "role-grupo"}`}>
-              {isAdmin ? "🔑 Admin" : "🏷️ " + user.grupo_nombre}
+            <span className={`role-badge ${isAdmin ? "role-admin" : user.es_coordinador ? "role-admin" : "role-grupo"}`}>
+              {isAdmin ? "🔑 Admin" : user.es_coordinador ? "📡 Coordinador" : "🏷️ " + user.grupo_nombre}
             </span>
             <span className="username-label">{user.username}</span>
             <button className="btn-logout" onClick={handleLogout}>Salir</button>

@@ -21,7 +21,7 @@ def _gen_password(n=10):
 
 def _fetch_grupo(cur, grupo_id):
     cur.execute(f"""
-        SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre
+        SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre, g.es_coordinador
         FROM grupos_trabajo g
         LEFT JOIN miembros m ON m.id = g.representante_principal_id
         WHERE g.id = %s
@@ -30,7 +30,8 @@ def _fetch_grupo(cur, grupo_id):
     if not r:
         return None
     grupo = {"id": r[0], "nombre": r[1], "descripcion": r[2],
-             "representante": {"id": r[3], "nombre": r[4]} if r[3] else None, "miembros": []}
+             "representante": {"id": r[3], "nombre": r[4]} if r[3] else None,
+             "es_coordinador": bool(r[5]) if len(r) > 5 and r[5] is not None else False, "miembros": []}
     cur.execute(f"""
         SELECT m.id, m.nombre, m.cargo
         FROM miembros_grupos mg
@@ -48,20 +49,21 @@ def listar_grupos():
     cur = conn.cursor()
     if user["rol"] == "grupo":
         cur.execute(f"""
-            SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre
+            SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre, g.es_coordinador
             FROM grupos_trabajo g
             LEFT JOIN miembros m ON m.id = g.representante_principal_id
             WHERE g.id = %s
         """, (user["grupo_id"],))
     else:
         cur.execute(f"""
-            SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre
+            SELECT g.id, g.nombre, g.descripcion, m.id, m.nombre, g.es_coordinador
             FROM grupos_trabajo g
             LEFT JOIN miembros m ON m.id = g.representante_principal_id
             ORDER BY g.nombre
         """)
     grupos = {r[0]: {"id": r[0], "nombre": r[1], "descripcion": r[2],
                      "representante": {"id": r[3], "nombre": r[4]} if r[3] else None,
+                     "es_coordinador": bool(r[5]) if len(r) > 5 and r[5] is not None else False,
                      "miembros": []}
               for r in cur.fetchall()}
     if grupos:
@@ -94,10 +96,11 @@ def crear_grupo():
         return jsonify({"error": "nombre requerido"}), 400
     conn = get_connection()
     cur = conn.cursor()
+    es_coordinador = bool(data.get("es_coordinador", False))
     cur.execute(f"""
-        INSERT INTO grupos_trabajo (nombre, descripcion)
-        VALUES (%s, %s) RETURNING id
-    """, (nombre, data.get("descripcion", "").strip() or None))
+        INSERT INTO grupos_trabajo (nombre, descripcion, es_coordinador)
+        VALUES (%s, %s, %s) RETURNING id
+    """, (nombre, data.get("descripcion", "").strip() or None, es_coordinador))
     new_id = cur.fetchone()[0]
 
     # Usar credenciales del body o auto-generar
@@ -157,11 +160,12 @@ def editar_grupo(grupo_id):
         return jsonify({"error": "nombre requerido"}), 400
     conn = get_connection()
     cur = conn.cursor()
+    es_coordinador = bool(data.get("es_coordinador", False))
     cur.execute(f"""
         UPDATE grupos_trabajo
-        SET nombre = %s, descripcion = %s, representante_principal_id = %s
+        SET nombre = %s, descripcion = %s, representante_principal_id = %s, es_coordinador = %s
         WHERE id = %s
-    """, (nombre, data.get("descripcion"), rep_id or None, grupo_id))
+    """, (nombre, data.get("descripcion"), rep_id or None, es_coordinador, grupo_id))
     if cur.rowcount == 0:
         conn.close()
         return jsonify({"error": "Grupo no encontrado"}), 404

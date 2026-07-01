@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS grupos_trabajo (
     nombre                     VARCHAR(200) NOT NULL,
     descripcion                VARCHAR(500),
     representante_principal_id INT,
+    es_coordinador             BOOLEAN DEFAULT FALSE,
     fecha_creacion             TIMESTAMPTZ DEFAULT NOW()
 );
 

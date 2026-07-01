@@ -90,7 +90,7 @@ mesa-de-contingencia/
 │   ├── app/
 │   │   ├── __init__.py           # Flask factory (create_app), CORS manual, OPTIONS handler
 │   │   ├── db.py                 # get_connection() via DATABASE_URL + psycopg2
-│   │   ├── auth.py               # JWT login/logout, decoradores @require_auth, @require_admin
+│   │   ├── auth.py               # JWT login/logout, decoradores @require_auth, @require_admin, @require_privileged
 │   │   ├── validaciones.py       # Validación de cédula, teléfono, email, miembros (Venezuela)
 │   │   ├── schema.sql            # Esquema legacy (SQL Server)
 │   │   ├── schema_supabase.sql   # Esquema actual PostgreSQL
@@ -148,7 +148,7 @@ mesa-de-contingencia/
 | Tabla | Descripción | Campos clave |
 |-------|------------|--------------|
 | `miembros` | Personal registrado | id, nombre, cedula (unique), telefono, tlf_alternativo, cargo, email |
-| `grupos_trabajo` | Grupos de trabajo | id, nombre, descripcion, representante_principal_id → miembros |
+| `grupos_trabajo` | Grupos de trabajo | id, nombre, descripcion, representante_principal_id → miembros, es_coordinador |
 | `miembros_grupos` | Relación N:M miembro↔grupo | miembro_id, grupo_id (PK compuesta) |
 | `centros_atencion` | Centros de atención (hospitales, etc.) | id, nombre, descripcion, activo, direccion, lat, lng |
 | `centro_contactos` | Contactos de cada centro | id, centro_id → centros, nombre, cargo, telefono, email |
@@ -184,8 +184,9 @@ usuarios ← centro_id → centros_atencion
 ### Roles
 | Rol | Permisos |
 |-----|----------|
-| `admin` | Todo: CRUD completo en miembros, grupos, centros, solicitudes, actividades. Puede asignar cualquier solicitud a cualquier grupo. |
-| `grupo` | Ve solo su grupo y sus miembros. Puede crear solicitudes propias. Solo se autoasigna actividades de sus solicitudes. |
+| `admin` | Todo: CRUD completo en miembros, grupos, centros, solicitudes, actividades. Puede asignar cualquier solicitud a cualquier grupo. Recibe todas las notificaciones. |
+| `coordinador` | Sub-admin (es un `grupo` con flag `es_coordinador = TRUE`). Puede asignar cualquier solicitud, eliminar solicitudes, ver todas las actividades, recibe todas las notificaciones. NO puede gestionar grupos ni centros. (Usa helper `is_privileged()`) |
+| `grupo` | Ve solo su grupo y sus miembros. Puede crear solicitudes propias. Solo se autoasigna actividades de sus solicitudes. Solo recibe notificaciones de su grupo. |
 | `centro` | Vista especial (`VistaCentro.jsx`): puede crear solicitudes desde su centro. No ve el tablero Kanban de admin. |
 
 ### Flujo de autenticación
@@ -243,12 +244,12 @@ usuarios ← centro_id → centros_atencion
 ### Solicitudes
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/solicitudes` | Auth | Listar (admin: todas, grupo: solo las suyas) |
-| GET | `/api/solicitudes/pendientes` | Admin | Solicitudes sin actividad asignada |
+| GET | `/api/solicitudes` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
+| GET | `/api/solicitudes/pendientes` | Privileged | Solicitudes sin actividad asignada |
 | GET | `/api/solicitudes/mis-centro` | Centro | Solicitudes del centro autenticado |
 | POST | `/api/solicitudes` | Auth | Crear solicitud (con items/insumos) |
 | PUT | `/api/solicitudes/:id` | Auth | Editar (verifica propiedad) |
-| DELETE | `/api/solicitudes/:id` | Admin | Eliminar (falla si ya es actividad) |
+| DELETE | `/api/solicitudes/:id` | Privileged | Eliminar (falla si ya es actividad) |
 
 ### Insumos
 | Método | Ruta | Auth | Descripción |
@@ -258,8 +259,8 @@ usuarios ← centro_id → centros_atencion
 ### Actividades
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/actividades` | Auth | Listar (admin: todas, grupo: solo las suyas) |
-| POST | `/api/actividades` | Auth | Crear actividad desde solicitud existente |
+| GET | `/api/actividades` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
+| POST | `/api/actividades` | Auth | Crear actividad desde solicitud existente (privileged: asigna a cualquiera) |
 | POST | `/api/actividades/rapida` | Auth | Crear solicitud + actividad en un paso |
 | PUT | `/api/actividades/:id` | Auth | Cambiar estado (Por ejecutar/En ejecución/Ejecutado) |
 | PUT | `/api/actividades/:id/miembros` | Auth | Asignar miembros a actividad |

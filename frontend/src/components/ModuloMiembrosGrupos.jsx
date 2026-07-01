@@ -81,6 +81,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
     setEditandoGrupo({
       id: g.id, nombre: g.nombre, descripcion: g.descripcion || "",
       representante_principal_id: g.representante ? String(g.representante.id) : "",
+      es_coordinador: g.es_coordinador || false,
     });
     setNuevoUser({ username: "", password: "", password2: "" });
     setNuevaPass("");
@@ -97,6 +98,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       await api.editarGrupo(editandoGrupo.id, {
         nombre: editandoGrupo.nombre,
         descripcion: editandoGrupo.descripcion,
+        es_coordinador: editandoGrupo.es_coordinador,
         representante_principal_id: editandoGrupo.representante_principal_id
           ? Number(editandoGrupo.representante_principal_id) : null,
       });
@@ -482,6 +484,11 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                       onChange={e => setNuevoGrupo(p => ({ ...p, descripcion: e.target.value }))}
                       placeholder="Opcional" />
                   </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
+                    <input type="checkbox" checked={nuevoGrupo.es_coordinador || false}
+                      onChange={e => setNuevoGrupo(p => ({ ...p, es_coordinador: e.target.checked }))} />
+                    <span style={{ fontWeight: "normal" }}>Otorgar permisos de coordinador (gestión global)</span>
+                  </label>
                   <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "0.75rem", marginTop: "0.25rem" }}>
                     <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.4rem" }}>Credenciales de acceso</div>
                     <label>Usuario
@@ -514,7 +521,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             {grupos.map(g => (
               <div key={g.id} className="grupo-card">
                 <div className="grupo-card-header">
-                  <span className="grupo-nombre">{g.nombre}</span>
+                  <span className="grupo-nombre">{g.nombre} {g.es_coordinador && <span title="Coordinador" style={{ fontSize: "1rem" }}>📡</span>}</span>
                   <div className="grupo-card-actions">
                     <span className="grupo-badge">{g.miembros.length} miembro{g.miembros.length !== 1 ? "s" : ""}</span>
                     <button className="btn-edit-grupo" onClick={() => abrirEdicion(g)} title="Editar">✏️</button>
@@ -560,15 +567,22 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                   onChange={e => setEditandoGrupo(p => ({ ...p, descripcion: e.target.value }))} />
               </label>
             </div>
-            <label>Representante Principal
-              <select value={editandoGrupo.representante_principal_id}
-                onChange={e => setEditandoGrupo(p => ({ ...p, representante_principal_id: e.target.value }))}>
-                <option value="">— Ninguno —</option>
-                {miembros.filter(m => m.grupo?.id === editandoGrupo.id).map(m => (
-                  <option key={m.id} value={m.id}>{m.nombre}{m.cargo ? ` (${m.cargo})` : ""}</option>
-                ))}
-              </select>
-            </label>
+            <div className="form-row">
+              <label>Representante Principal
+                <select value={editandoGrupo.representante_principal_id}
+                  onChange={e => setEditandoGrupo(p => ({ ...p, representante_principal_id: e.target.value }))}>
+                  <option value="">— Ninguno —</option>
+                  {miembros.filter(m => m.grupo?.id === editandoGrupo.id).map(m => (
+                    <option key={m.id} value={m.id}>{m.nombre}{m.cargo ? ` (${m.cargo})` : ""}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", alignSelf: "flex-end", marginBottom: "0.5rem" }}>
+                <input type="checkbox" checked={editandoGrupo.es_coordinador || false}
+                  onChange={e => setEditandoGrupo(p => ({ ...p, es_coordinador: e.target.checked }))} />
+                <span style={{ fontWeight: "normal" }}>Es Coordinador (permisos elevados)</span>
+              </label>
+            </div>
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button type="submit" className="btn-primary">Guardar Cambios</button>
               <button type="button" className="btn-ghost" onClick={() => setTab("grupos")}>Cancelar</button>

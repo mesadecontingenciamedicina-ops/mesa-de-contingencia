@@ -23,6 +23,7 @@ const FORM_VACIO = () => ({
 export default function ModuloSolicitudes({ onDataChange }) {
   const { user } = useAuth();
   const isAdmin = user.rol === "admin";
+  const isPrivileged = isAdmin || user.es_coordinador;
 
   const [pendientes,     setPendientes]     = useState([]);
   const [misSolicitudes, setMisSolicitudes] = useState([]);
@@ -40,7 +41,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
   const reload = async () => {
     const [ms] = await Promise.all([api.getMiembros()]);
     setMiembros(ms);
-    if (isAdmin) {
+    if (isPrivileged) {
       const [p, g] = await Promise.all([api.getSolicitudesPendientes(), api.getGrupos()]);
       setPendientes(p); setGrupos(g);
     } else {
@@ -119,11 +120,11 @@ export default function ModuloSolicitudes({ onDataChange }) {
     } catch (err) { flash(err.message, false); }
   };
 
-  const lista = isAdmin ? pendientes : misSolicitudes;
+  const lista = isPrivileged ? pendientes : misSolicitudes;
 
   return (
     <div className="modulo">
-      <h2>{isAdmin ? "📥 Bandeja de Solicitudes" : "📥 Mis Solicitudes"}</h2>
+      <h2>{isPrivileged ? "📥 Bandeja de Solicitudes" : "📥 Mis Solicitudes"}</h2>
       {msg && <div className={`alert ${msg.ok ? "alert-ok" : "alert-err"}`}>{msg.text}</div>}
 
       <button className="btn-secondary" onClick={() => showForm ? setShowForm(false) : abrirForm()}>
@@ -190,11 +191,11 @@ export default function ModuloSolicitudes({ onDataChange }) {
       )}
 
       <h3 style={{ marginTop: "1.5rem" }}>
-        {isAdmin ? `Pendientes de asignación (${lista.length})` : `Solicitudes enviadas (${lista.length})`}
+        {isPrivileged ? `Pendientes de asignación (${lista.length})` : `Solicitudes enviadas (${lista.length})`}
       </h3>
 
       {lista.length === 0
-        ? <p className="empty">{isAdmin ? "No hay solicitudes pendientes." : "Tu grupo no ha enviado solicitudes aún."}</p>
+        ? <p className="empty">{isPrivileged ? "No hay solicitudes pendientes." : "Tu grupo no ha enviado solicitudes aún."}</p>
         : (
           <div className="card-list">
             {lista.map(s => (
@@ -223,7 +224,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
                 <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem", alignItems:"flex-end" }}
                      onClick={e => e.stopPropagation()}>
                   <button className="btn-edit-grupo" title="Editar" onClick={() => abrirEditar(s)}>✏️</button>
-                  {isAdmin && !s.actividad_estado && (
+                  {isPrivileged && !s.actividad_estado && (
                     <button className="btn-edit-grupo" style={{ background: "#dc2626" }} title="Eliminar"
                       onClick={() => eliminar(s)}>🗑️</button>
                   )}
@@ -231,7 +232,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
                     ? <span className={`badge-estado badge-${s.actividad_estado.replace(/ /g,"-").toLowerCase()}`}>
                         {s.actividad_estado}
                       </span>
-                    : isAdmin
+                    : isPrivileged
                       ? <button className="btn-assign" onClick={() => { setModal(s); setGrupoSel(""); }}>Asignar →</button>
                       : <button className="btn-assign" disabled={autoasignando[s.id]}
                           onClick={() => autoasignar(s.id)}>

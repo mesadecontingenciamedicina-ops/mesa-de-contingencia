@@ -1,7 +1,7 @@
 from flask import request, jsonify
 from . import main_bp
 from ..db import get_connection
-from ..auth import require_auth, require_admin, get_current_user
+from ..auth import require_auth, require_admin, is_privileged, get_current_user
 
 ESTADOS = ["Por ejecutar", "En ejecución", "Ejecutado"]
 
@@ -14,11 +14,11 @@ def crear_actividad():
     grupo_id = data.get("grupo_id")
     if not solicitud_id or not grupo_id:
         return jsonify({"error": "solicitud_id y grupo_id requeridos"}), 400
-    if user["rol"] == "grupo" and int(grupo_id) != user["grupo_id"]:
+    if not is_privileged(user) and user["rol"] == "grupo" and int(grupo_id) != user["grupo_id"]:
         return jsonify({"error": "Solo puedes asignar actividades a tu propio grupo"}), 403
     conn = get_connection()
     cur = conn.cursor()
-    if user["rol"] == "grupo":
+    if not is_privileged(user) and user["rol"] == "grupo":
         cur.execute(f"SELECT creado_por_grupo_id FROM solicitudes WHERE id = %s", (solicitud_id,))
         row = cur.fetchone()
         if not row or row[0] != user["grupo_id"]:
@@ -49,7 +49,7 @@ def crear_actividad_rapida():
         return jsonify({"error": "La descripción es obligatoria"}), 400
     if not grupo_id:
         return jsonify({"error": "El grupo es obligatorio"}), 400
-    if user["rol"] == "grupo" and int(grupo_id) != user["grupo_id"]:
+    if not is_privileged(user) and user["rol"] == "grupo" and int(grupo_id) != user["grupo_id"]:
         return jsonify({"error": "Solo puedes crear actividades para tu propio grupo"}), 403
 
     from datetime import datetime
@@ -97,7 +97,7 @@ def actualizar_actividad(act_id):
         return jsonify({"error": f"Estado inválido. Valores: {ESTADOS}"}), 400
     conn = get_connection()
     cur = conn.cursor()
-    if user["rol"] == "grupo":
+    if not is_privileged(user) and user["rol"] == "grupo":
         cur.execute(f"SELECT grupo_id FROM actividades WHERE id = %s", (act_id,))
         row = cur.fetchone()
         if not row or row[0] != user["grupo_id"]:
@@ -124,7 +124,7 @@ def set_miembros_actividad(act_id):
     if not row:
         conn.close()
         return jsonify({"error": "Actividad no encontrada"}), 404
-    if user["rol"] == "grupo" and row[0] != user["grupo_id"]:
+    if not is_privileged(user) and user["rol"] == "grupo" and row[0] != user["grupo_id"]:
         conn.close()
         return jsonify({"error": "Acceso denegado"}), 403
     cur.execute(f"DELETE FROM actividad_miembros WHERE actividad_id = %s", (act_id,))
@@ -151,10 +151,10 @@ def listar_actividades():
         LEFT JOIN miembros m  ON m.id  = g.representante_principal_id
         LEFT JOIN miembros ms ON ms.id = s.solicitante_id
     """
-    if user["rol"] == "grupo":
-        cur.execute(base + " WHERE a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", (user["grupo_id"],))
-    else:
+    if is_privileged(user):
         cur.execute(base + " ORDER BY a.fecha_actualizacion DESC")
+    else:
+        cur.execute(base + " WHERE a.grupo_id = %s ORDER BY a.fecha_actualizacion DESC", (user["grupo_id"],))
     actividades = {r[0]: {
         "id": r[0], "estado": r[1],
         "fecha_asignacion": str(r[2]), "fecha_actualizacion": str(r[3]),
