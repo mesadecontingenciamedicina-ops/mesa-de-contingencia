@@ -12,6 +12,8 @@ const ESTADOS = ["Pendiente", "Aprobada", "Rechazada", "Resuelta"];
 const ESTADO_COLOR = { Pendiente: "#d97706", Aprobada: "#16a34a", Rechazada: "#dc2626", Resuelta: "#2563eb" };
 const ESTADO_BG    = { Pendiente: "#fef3c7", Aprobada: "#dcfce7", Rechazada: "#fee2e2", Resuelta: "#dbeafe" };
 
+const TIPOS_SOLICITUD = ["Grupo", "Centro", "Administración", "Externos"];
+
 function nowLocal() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -32,6 +34,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
 
   const [lista,          setLista]          = useState([]);
   const [estadoFiltro,   setEstadoFiltro]   = useState("Pendiente");
+  const [tipoFiltro,     setTipoFiltro]     = useState("Todas");
   const [miembros,       setMiembros]       = useState([]);
   const [form,           setForm]           = useState(FORM_VACIO);
   const [showForm,       setShowForm]       = useState(false);
@@ -48,6 +51,8 @@ export default function ModuloSolicitudes({ onDataChange }) {
     setLista(await api.getSolicitudes(isPrivileged ? (estadoFiltro === "Todas" ? null : estadoFiltro) : null));
   };
   useEffect(() => { reload(); }, [estadoFiltro]);
+
+  const visibles = lista.filter(s => tipoFiltro === "Todas" || s.tipo_solicitud === tipoFiltro);
 
   const flash = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 3500); };
   const f = (campo, valor) => setForm(p => ({ ...p, [campo]: valor }));
@@ -159,6 +164,18 @@ export default function ModuloSolicitudes({ onDataChange }) {
         )}
       </div>
 
+      {isPrivileged && (
+        <div className="prioridad-group" style={{ marginBottom: "0.5rem", flexWrap: "wrap" }}>
+          {["Todas", ...TIPOS_SOLICITUD].map(t => (
+            <button key={t} type="button"
+              className={`prioridad-btn ${tipoFiltro === t ? "prioridad-active" : ""}`}
+              onClick={() => setTipoFiltro(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={submitSolicitud} className="form sol-form" style={{ maxWidth: "100%", marginTop: "1.25rem" }}>
 
@@ -233,14 +250,14 @@ export default function ModuloSolicitudes({ onDataChange }) {
       )}
 
       <h3 style={{ marginTop: "1.5rem" }}>
-        {isPrivileged ? `Solicitudes (${lista.length})` : `Solicitudes enviadas (${lista.length})`}
+        {isPrivileged ? `Solicitudes (${visibles.length})` : `Solicitudes enviadas (${visibles.length})`}
       </h3>
 
-      {lista.length === 0
+      {visibles.length === 0
         ? <p className="empty">{isPrivileged ? "No hay solicitudes en este estado." : "Tu grupo no ha enviado solicitudes aún."}</p>
         : (
           <div className="card-list">
-            {lista.map(s => (
+            {visibles.map(s => (
               <div key={s.id} className="card sol-card" onClick={() => setDetalle(s)} style={{ cursor: "pointer" }}>
                 <div className="card-body">
                   <div className="sol-card-top">
@@ -251,7 +268,9 @@ export default function ModuloSolicitudes({ onDataChange }) {
                     <span className="prioridad-tag" style={{ background: ESTADO_BG[s.estado], color: ESTADO_COLOR[s.estado] }}>
                       {s.estado}
                     </span>
-                    {s.origen && <span className="origen-badge">{s.origen.tipo === "centro" ? "🏥" : "📤"} {s.origen.nombre}</span>}
+                    {s.origen?.nombre
+                      ? <span className="origen-badge">{s.origen.tipo === "centro" ? "🏥" : "📤"} {s.origen.nombre}</span>
+                      : <span className="origen-badge">🏛️ {s.tipo_solicitud}</span>}
                   </div>
                   <p className="card-desc">{s.descripcion}</p>
                   <div className="sol-meta">

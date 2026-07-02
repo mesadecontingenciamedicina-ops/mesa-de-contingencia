@@ -68,6 +68,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
     CONSTRAINT ck_usuario_rol CHECK (rol IN ('admin', 'grupo', 'centro'))
 );
 
+-- Catálogo de tipos de solicitud (clasificación normalizada del creador)
+CREATE TABLE IF NOT EXISTS tipos_solicitud (
+    id     SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
 -- Solicitudes
 CREATE TABLE IF NOT EXISTS solicitudes (
     id                     SERIAL PRIMARY KEY,
@@ -91,6 +97,8 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     aprobado_por_username  VARCHAR(100),
     aprobado_en            TIMESTAMPTZ,
     rechazo_motivo         TEXT,
+    -- Clasificación normalizada del creador (Grupo/Centro/Administración/Externos)
+    tipo_solicitud_id      INT NOT NULL REFERENCES tipos_solicitud(id),
     CONSTRAINT ck_sol_prioridad CHECK (prioridad IN ('Baja', 'Normal', 'Alta')),
     CONSTRAINT ck_sol_estado CHECK (estado IN ('Pendiente', 'Aprobada', 'Rechazada', 'Resuelta'))
 );

@@ -11,6 +11,7 @@ export default function ModuloSolicitudesAprobadas() {
 
   const [lista,          setLista]          = useState([]);
   const [filtroOrigen,   setFiltroOrigen]   = useState("todos");
+  const [filtroTipo,     setFiltroTipo]     = useState("todos");
   const [msg,            setMsg]            = useState(null);
   const [procesando,     setProcesando]     = useState({});
   const [detalle,        setDetalle]        = useState(null);
@@ -29,10 +30,12 @@ export default function ModuloSolicitudesAprobadas() {
 
   const flash = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 3500); };
 
-  const origenes = [...new Map(lista.map(s => [`${s.origen.tipo}-${s.origen.id}`, s.origen])).values()];
-  const visibles = filtroOrigen === "todos"
-    ? lista
-    : lista.filter(s => `${s.origen.tipo}-${s.origen.id}` === filtroOrigen);
+  const origenes = [...new Map(lista.map(s => [`${s.origen.tipo}-${s.origen.id}`, s.origen])).values()]
+    .filter(o => o.nombre);
+  const tipos = [...new Set(lista.map(s => s.tipo_solicitud))];
+  const visibles = lista
+    .filter(s => filtroOrigen === "todos" || `${s.origen.tipo}-${s.origen.id}` === filtroOrigen)
+    .filter(s => filtroTipo === "todos" || s.tipo_solicitud === filtroTipo);
 
   const abrirDetalle = (s) => {
     setDetalle(s);
@@ -91,6 +94,20 @@ export default function ModuloSolicitudesAprobadas() {
       </p>
       {msg && <div className={`alert ${msg.ok ? "alert-ok" : "alert-err"}`}>{msg.text}</div>}
 
+      {tipos.length > 1 && (
+        <div className="prioridad-group" style={{ marginBottom: "0.5rem", flexWrap: "wrap" }}>
+          <button type="button" className={`prioridad-btn ${filtroTipo === "todos" ? "prioridad-active" : ""}`}
+            onClick={() => setFiltroTipo("todos")}>Todos los tipos</button>
+          {tipos.map(t => (
+            <button key={t} type="button"
+              className={`prioridad-btn ${filtroTipo === t ? "prioridad-active" : ""}`}
+              onClick={() => setFiltroTipo(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
       {origenes.length > 1 && (
         <div className="prioridad-group" style={{ marginBottom: "1rem", flexWrap: "wrap" }}>
           <button type="button" className={`prioridad-btn ${filtroOrigen === "todos" ? "prioridad-active" : ""}`}
@@ -117,7 +134,9 @@ export default function ModuloSolicitudesAprobadas() {
                       style={{ background: PRIORIDAD_BG[s.prioridad], color: PRIORIDAD_COLOR[s.prioridad] }}>
                       {s.prioridad}
                     </span>
-                    <span className="origen-badge">{s.origen.tipo === "centro" ? "🏥" : "📤"} {s.origen.nombre}</span>
+                    {s.origen?.nombre
+                      ? <span className="origen-badge">{s.origen.tipo === "centro" ? "🏥" : "📤"} {s.origen.nombre}</span>
+                      : <span className="origen-badge">🏛️ {s.tipo_solicitud}</span>}
                   </div>
                   <p className="card-desc">{s.descripcion}</p>
                   <div className="sol-meta">

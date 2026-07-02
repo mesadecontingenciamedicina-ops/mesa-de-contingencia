@@ -23,7 +23,8 @@ ESTADOS = ["Pendiente", "Aprobada", "Rechazada", "Resuelta"]
 # 12 solicitante_id, 13 solicitante_nombre, 14 solicitante_telefono, 15 solicitante_email,
 # 16 origen_tipo, 17 origen_id, 18 origen_nombre,
 # 19 aprobado_por_username, 20 aprobado_en, 21 rechazo_motivo,
-# 22 reclamado_por_grupo_id, 23 reclamado_por_grupo_nombre, 24 reclamado_en
+# 22 reclamado_por_grupo_id, 23 reclamado_por_grupo_nombre, 24 reclamado_en,
+# 25 tipo_solicitud
 
 def _row_to_dict(r):
     return {
@@ -40,6 +41,7 @@ def _row_to_dict(r):
         "rechazo_motivo": r[21],
         "reclamado_por": {"id": r[22], "nombre": r[23]} if r[22] else None,
         "reclamado_en": str(r[24]) if r[24] else None,
+        "tipo_solicitud": r[25],
     }
 
 def _select_base():
@@ -47,16 +49,20 @@ def _select_base():
     SELECT s.id, s.descripcion, s.fecha_creacion, s.fecha_actualizacion, s.estado, s.prioridad,
            s.ubicacion, s.fecha_hora, s.lat, s.lng, s.receptor_nombre, s.receptor_telefono,
            s.solicitante_id, ms.nombre, ms.telefono, ms.email,
-           CASE WHEN s.creado_por_grupo_id IS NOT NULL THEN 'grupo' ELSE 'centro' END,
+           CASE WHEN s.creado_por_grupo_id IS NOT NULL THEN 'grupo'
+                WHEN s.creado_por_centro_id IS NOT NULL THEN 'centro'
+                ELSE NULL END,
            COALESCE(s.creado_por_grupo_id, s.creado_por_centro_id),
            COALESCE(g.nombre, c.nombre),
            s.aprobado_por_username, s.aprobado_en, s.rechazo_motivo,
-           s.reclamado_por_grupo_id, rg.nombre, s.reclamado_en
+           s.reclamado_por_grupo_id, rg.nombre, s.reclamado_en,
+           ts.nombre
     FROM solicitudes s
     LEFT JOIN grupos_trabajo g   ON g.id = s.creado_por_grupo_id
     LEFT JOIN centros_atencion c ON c.id = s.creado_por_centro_id
     LEFT JOIN grupos_trabajo rg  ON rg.id = s.reclamado_por_grupo_id
     LEFT JOIN miembros ms        ON ms.id = s.solicitante_id
+    LEFT JOIN tipos_solicitud ts ON ts.id = s.tipo_solicitud_id
 """
 
 ORDER = """ORDER BY
@@ -122,6 +128,11 @@ def _rows_with_items(cur, rows):
     return dicts
 
 
+def _tipo_solicitud_id(cur, nombre):
+    cur.execute("SELECT id FROM tipos_solicitud WHERE nombre = %s", (nombre,))
+    return cur.fetchone()[0]
+
+
 def _log(cur, solicitud_id, evento, user, detalle=None):
     cur.execute("""
         INSERT INTO solicitud_log (solicitud_id, evento, usuario, rol, detalle)
@@ -156,18 +167,28 @@ def crear_solicitud():
     centro_id = user["centro_id"] if user["rol"] == "centro" else None
     conn = get_connection()
     cur = conn.cursor()
+    if grupo_id:
+        tipo_nombre = "Grupo"
+    elif centro_id:
+        tipo_nombre = "Centro"
+    elif user["rol"] == "admin":
+        tipo_nombre = "Administración"
+    else:
+        tipo_nombre = "Externos"
+    tipo_solicitud_id = _tipo_solicitud_id(cur, tipo_nombre)
     cur.execute("""
         INSERT INTO solicitudes
             (descripcion, creado_por_grupo_id, creado_por_centro_id, ubicacion, fecha_hora,
-             prioridad, lat, lng, solicitante_id, receptor_nombre, receptor_telefono)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, fecha_creacion
+             prioridad, lat, lng, solicitante_id, receptor_nombre, receptor_telefono, tipo_solicitud_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, fecha_creacion
     """, (descripcion, grupo_id, centro_id,
           data.get("ubicacion"), _parse_fecha(data.get("fecha_hora")),
           prioridad,
           data.get("lat"), data.get("lng"),
           data.get("solicitante_id") or None,
           (data.get("receptor_nombre") or "").strip() or None,
-          (data.get("receptor_telefono") or "").strip() or None))
+          (data.get("receptor_telefono") or "").strip() or None,
+          tipo_solicitud_id))
     row = cur.fetchone()
     new_id = row[0]
     _insert_items(cur, new_id, data.get("items", []))
