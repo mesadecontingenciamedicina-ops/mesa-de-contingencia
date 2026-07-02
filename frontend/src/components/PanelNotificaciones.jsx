@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 
-export default function PanelNotificaciones({ onAbrirActividad }) {
+export default function PanelNotificaciones({ onNotifClick }) {
   const [notifs, setNotifs]   = useState([]);
   const [abierto, setAbierto] = useState(false);
   const ref = useRef(null);
@@ -28,7 +28,7 @@ export default function PanelNotificaciones({ onAbrirActividad }) {
   const marcar = async (n) => {
     if (!n.leida) { await api.marcarLeida(n.id); reload(); }
     setAbierto(false);
-    if (onAbrirActividad) onAbrirActividad(n.actividad_id);
+    if (onNotifClick) onNotifClick(n);
   };
 
   const leerTodas = async () => { await api.leerTodas(); reload(); };

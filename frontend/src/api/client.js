@@ -67,25 +67,38 @@ export const api = {
   eliminarCentro: (id) => req("DELETE", `/centros/${id}`),
   getUsuarioCentro: (id) => req("GET", `/centros/${id}/usuario`),
   cambiarPasswordCentro: (id, d) => req("PUT", `/centros/${id}/usuario`, d),
+  getMisContactos: () => req("GET", "/centros/mis-contactos"),
   getSolicitudesCentro: () => req("GET", "/solicitudes/mis-centro"),
 
-  getSolicitudesPendientes: () => req("GET", "/solicitudes/pendientes"),
-  getSolicitudes: () => req("GET", "/solicitudes"),
+  getSolicitudes: (estado) => req("GET", `/solicitudes${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),
   crearSolicitud: (d) => req("POST", "/solicitudes", d),
   editarSolicitud: (id, d) => req("PUT", `/solicitudes/${id}`, d),
   eliminarSolicitud: (id) => req("DELETE", `/solicitudes/${id}`),
+  aprobarSolicitud: (id) => req("PUT", `/solicitudes/${id}/aprobar`),
+  rechazarSolicitud: (id, motivo) => req("PUT", `/solicitudes/${id}/rechazar`, { motivo }),
+
+  getSolicitudesAprobadas: ({ centro_id, grupo_id } = {}) => {
+    const params = new URLSearchParams();
+    if (centro_id) params.set("centro_id", centro_id);
+    if (grupo_id) params.set("grupo_id", grupo_id);
+    const qs = params.toString();
+    return req("GET", `/solicitudes/aprobadas${qs ? `?${qs}` : ""}`);
+  },
+  reclamarSolicitud: (id) => req("PUT", `/solicitudes/${id}/reclamar`),
+  liberarSolicitud: (id, aportes, mensaje) => req("PUT", `/solicitudes/${id}/liberar`, { aportes, mensaje }),
+  marcarResueltaSolicitud: (id, aportes = [], mensaje) => req("PUT", `/solicitudes/${id}/marcar-resuelta`, { aportes, mensaje }),
+  getHistorialSolicitud: (id) => req("GET", `/solicitudes/${id}/historial`),
 
   buscarInsumos: (q) => req("GET", `/insumos?q=${encodeURIComponent(q)}&limit=10`),
 
-  getActividades: () => req("GET", "/actividades"),
-  crearActividad: (d) => req("POST", "/actividades", d),
-  crearActividadRapida: (d) => req("POST", "/actividades/rapida", d),
-  actualizarActividad: (id, estado) => req("PUT", `/actividades/${id}`, { estado }),
-  archivarActividad: (id) => req("DELETE", `/actividades/${id}`),
-  setMiembrosActividad: (id, miembro_ids) => req("PUT", `/actividades/${id}/miembros`, { miembro_ids }),
+  getTareas: () => req("GET", "/tareas"),
+  crearTarea: (d) => req("POST", "/tareas", d),
+  actualizarTarea: (id, estado) => req("PUT", `/tareas/${id}`, { estado }),
+  archivarTarea: (id) => req("DELETE", `/tareas/${id}`),
+  setMiembrosTarea: (id, miembro_ids) => req("PUT", `/tareas/${id}/miembros`, { miembro_ids }),
 
-  getComentarios: (act_id) => req("GET", `/actividades/${act_id}/comentarios`),
-  crearComentario: (act_id, texto) => req("POST", `/actividades/${act_id}/comentarios`, { texto }),
+  getComentariosTarea: (tarea_id) => req("GET", `/tareas/${tarea_id}/comentarios`),
+  crearComentarioTarea: (tarea_id, texto) => req("POST", `/tareas/${tarea_id}/comentarios`, { texto }),
 
   getNotificaciones: () => req("GET", "/notificaciones"),
   marcarLeida: (id) => req("PUT", `/notificaciones/${id}/leer`),

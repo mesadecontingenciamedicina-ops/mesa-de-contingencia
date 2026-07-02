@@ -1,12 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import PanelNotificaciones from "./PanelNotificaciones";
 
 const PRIORIDADES = ["Baja", "Normal", "Alta"];
 const PRIORIDAD_COLOR = { Alta: "#dc2626", Normal: "#d97706", Baja: "#6b7280" };
 const PRIORIDAD_BG = { Alta: "#fee2e2", Normal: "#fef3c7", Baja: "#f3f4f6" };
-const ESTADO_COLOR = { "Por ejecutar": "#e74c3c", "En ejecución": "#f39c12", "Ejecutado": "#27ae60" };
-const ESTADO_BG = { "Por ejecutar": "#fee2e2", "En ejecución": "#fef3c7", "Ejecutado": "#dcfce7" };
+const ESTADO_COLOR = { Pendiente: "#d97706", Aprobada: "#16a34a", Rechazada: "#dc2626", Resuelta: "#2563eb" };
+const ESTADO_BG = { Pendiente: "#fef3c7", Aprobada: "#dcfce7", Rechazada: "#fee2e2", Resuelta: "#dbeafe" };
+const ESTADO_LABEL = {
+  Pendiente: "⏳ Pendiente de aprobación",
+  Aprobada: "✅ Aprobada — a la espera de ser resuelta",
+  Rechazada: "❌ Rechazada",
+  Resuelta: "✔ Resuelta",
+};
+const EVENTO_LABEL = {
+  creada: "Creada", aprobada: "Aprobada", rechazada: "Rechazada", reenviada: "Reenviada",
+  editada: "Editada", reclamada: "Bloqueada", liberada: "Avance guardado", resuelta: "Resuelta",
+};
 
 function nowLocal() {
   const d = new Date();
@@ -20,6 +31,7 @@ const FORM_VACIO = (user) => ({
   lat: user?.centro_lat || null,
   lng: user?.centro_lng || null,
   fecha_hora: nowLocal(),
+  receptor_nombre: "", receptor_telefono: "",
   items: [],
 });
 
@@ -31,8 +43,14 @@ export default function VistaCentro() {
   const [editando, setEditando] = useState(null);
   const [msg, setMsg] = useState(null);
   const [detalle, setDetalle] = useState(null);
+  const [historial, setHistorial] = useState(null);
   const [modalPassword, setModalPassword] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!detalle) { setHistorial(null); return; }
+    api.getHistorialSolicitud(detalle.id).then(setHistorial).catch(() => setHistorial([]));
+  }, [detalle?.id]);
 
   const handleGuardarPassword = async (e) => {
     e.preventDefault();
@@ -54,11 +72,26 @@ export default function VistaCentro() {
     logout();
   };
 
+  const irANotificacion = (n) => {
+    if (!n.solicitud_id) return;
+    const s = solicitudes.find(x => x.id === n.solicitud_id);
+    if (s) setDetalle(s);
+  };
+
   const reload = async () => setSolicitudes(await api.getSolicitudesCentro());
   useEffect(() => { reload(); }, []);
 
   const flash = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 4000); };
   const f = (campo, valor) => setForm(p => ({ ...p, [campo]: valor }));
+
+  const autocompletarContacto = async (aplicar) => {
+    try {
+      const contactos = await api.getMisContactos();
+      if (!contactos.length) return flash("Este centro no tiene contactos registrados.", false);
+      const c = contactos[0];
+      aplicar(c);
+    } catch (err) { flash(err.message, false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -80,7 +113,11 @@ export default function VistaCentro() {
       ubicacion: s.ubicacion || "",
       lat: s.lat || null, lng: s.lng || null,
       fecha_hora: s.fecha_hora ? s.fecha_hora.slice(0, 16) : nowLocal(),
-      items: (s.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, insumo_id: i.insumo_id || null })),
+      receptor_nombre: s.receptor_nombre || "", receptor_telefono: s.receptor_telefono || "",
+      items: (s.items || []).map(i => ({
+        nombre: i.nombre, cantidad: i.cantidad,
+        cantidad_flexible: i.cantidad_flexible, insumo_id: i.insumo_id || null,
+      })),
     });
     setDetalle(null);
   };
@@ -96,7 +133,7 @@ export default function VistaCentro() {
     } catch (err) { flash(err.message, false); }
   };
 
-  const gestionada = (s) => s.actividad_estado && s.actividad_estado !== "Por ejecutar";
+  const puedeEditar = (s) => s.estado === "Pendiente" || s.estado === "Rechazada";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
@@ -111,6 +148,7 @@ export default function VistaCentro() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <PanelNotificaciones onNotifClick={irANotificacion} />
             <button className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 10px", height: "fit-content" }}
               onClick={() => { setModalPassword({ id: user.centro_id, centro_nombre: user.centro_nombre, password: "" }); setShowPassword(false); }}>
               🔑 Cambiar Contraseña
@@ -162,6 +200,21 @@ export default function VistaCentro() {
                   onChange={e => f("fecha_hora", e.target.value)} />
               </label>
 
+              <button type="button" className="btn-secondary" style={{ fontSize: "0.78rem", padding: "4px 10px", alignSelf: "flex-start" }}
+                onClick={() => autocompletarContacto(c => setForm(p => ({ ...p, receptor_nombre: c.nombre, receptor_telefono: c.telefono || "" })))}>
+                📇 Usar datos de contacto del centro
+              </button>
+              <label>Nombre de quien recibe
+                <input value={form.receptor_nombre}
+                  onChange={e => f("receptor_nombre", e.target.value)}
+                  placeholder="Nombre de la persona que recibirá lo solicitado" />
+              </label>
+              <label>Teléfono de quien recibe
+                <input value={form.receptor_telefono}
+                  onChange={e => f("receptor_telefono", e.target.value)}
+                  placeholder="04XX-XXXXXXX" />
+              </label>
+
               {form.ubicacion && (
                 <div style={{ fontSize: "0.82rem", color: "#374151", background: "#f0f6ff", border: "1px solid #c3d9ff", borderRadius: 8, padding: "0.5rem 0.75rem" }}>
                   📍 <strong>Ubicación:</strong> {form.ubicacion}
@@ -186,7 +239,7 @@ export default function VistaCentro() {
             <div className="card-list">
               {solicitudes.map(s => (
                 <div key={s.id} className="card sol-card"
-                  style={{ cursor: "pointer", borderLeft: `4px solid ${s.actividad_estado ? ESTADO_COLOR[s.actividad_estado] || "#9ca3af" : "#e5e7eb"}` }}
+                  style={{ cursor: "pointer", borderLeft: `4px solid ${ESTADO_COLOR[s.estado] || "#9ca3af"}` }}
                   onClick={() => setDetalle(s)}>
                   <div className="card-body">
                     <div className="sol-card-top">
@@ -194,18 +247,12 @@ export default function VistaCentro() {
                         style={{ background: PRIORIDAD_BG[s.prioridad], color: PRIORIDAD_COLOR[s.prioridad] }}>
                         {s.prioridad}
                       </span>
-                      {s.actividad_estado
-                        ? <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700, background: ESTADO_BG[s.actividad_estado], color: ESTADO_COLOR[s.actividad_estado] }}>
-                          {s.actividad_estado === "En ejecución" ? "✅ En gestión" : s.actividad_estado === "Ejecutado" ? "✔ Atendida" : "⏳ Pendiente"}
-                        </span>
-                        : <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700, background: "#f3f4f6", color: "#6b7280" }}>⏳ Pendiente</span>
-                      }
+                      <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: "0.75rem", fontWeight: 700, background: ESTADO_BG[s.estado], color: ESTADO_COLOR[s.estado] }}>
+                        {ESTADO_LABEL[s.estado] || s.estado}
+                      </span>
                     </div>
                     <p className="card-desc" style={{ marginTop: "0.35rem" }}>{s.descripcion}</p>
                     <div className="sol-meta">
-                      {s.items && s.items.length > 0 && (
-                        <span>📦 {s.items.length} ítem{s.items.length !== 1 ? "s" : ""}</span>
-                      )}
                       {s.ubicacion && <span>📍 {s.ubicacion.slice(0, 60)}{s.ubicacion.length > 60 ? "…" : ""}</span>}
                       {s.fecha_hora && <span>🕐 {new Date(s.fecha_hora).toLocaleString("es-VE")}</span>}
                       <span className="date">Creada: {new Date(s.fecha_creacion).toLocaleDateString("es-VE")}</span>
@@ -213,10 +260,18 @@ export default function VistaCentro() {
                         <span className="date" style={{ color: "#d97706" }}>✏️ {new Date(s.fecha_actualizacion).toLocaleString("es-VE")}</span>
                       )}
                     </div>
+                    {s.items && s.items.length > 0 && (
+                      <p style={{ fontSize: "0.8rem", color: "#374151", marginTop: "0.4rem" }}>
+                        📦 <strong>Ítems:</strong> {s.items.map(i => `${i.nombre}${i.cantidad_flexible ? " (cualquier cantidad)" : ` (${i.cantidad})`}`).join(", ")}
+                      </p>
+                    )}
+                    {s.estado === "Rechazada" && s.rechazo_motivo && (
+                      <p style={{ fontSize: "0.8rem", color: "#dc2626", marginTop: "0.4rem" }}>❌ Motivo: {s.rechazo_motivo}</p>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", alignItems: "flex-end" }}
                     onClick={e => e.stopPropagation()}>
-                    {!gestionada(s) && (
+                    {puedeEditar(s) && (
                       <button className="btn-edit-grupo" title="Editar" onClick={() => abrirEditar(s)}>✏️</button>
                     )}
                   </div>
@@ -238,18 +293,18 @@ export default function VistaCentro() {
               </div>
               <div style={{ marginBottom: "1rem" }}>
                 <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, marginBottom: "0.4rem" }}>ESTADO</div>
-                {detalle.actividad_estado
-                  ? <span style={{ padding: "4px 14px", borderRadius: 12, fontSize: "0.85rem", fontWeight: 700, background: ESTADO_BG[detalle.actividad_estado], color: ESTADO_COLOR[detalle.actividad_estado] }}>
-                    {detalle.actividad_estado === "En ejecución" ? "✅ En gestión por la Facultad"
-                      : detalle.actividad_estado === "Ejecutado" ? "✔ Solicitud atendida"
-                        : "⏳ Pendiente de atención"}
-                  </span>
-                  : <span style={{ padding: "4px 14px", borderRadius: 12, fontSize: "0.85rem", fontWeight: 700, background: "#f3f4f6", color: "#6b7280" }}>⏳ Pendiente de atención</span>
-                }
+                <span style={{ padding: "4px 14px", borderRadius: 12, fontSize: "0.85rem", fontWeight: 700, background: ESTADO_BG[detalle.estado], color: ESTADO_COLOR[detalle.estado] }}>
+                  {ESTADO_LABEL[detalle.estado] || detalle.estado}
+                </span>
               </div>
+              {detalle.estado === "Rechazada" && (
+                <DetalleRow label="Motivo de rechazo" value={detalle.rechazo_motivo} />
+              )}
               <DetalleRow label="Descripción" value={detalle.descripcion} />
               <DetalleRow label="Ubicación" value={detalle.ubicacion} />
               <DetalleRow label="Fecha / Hora" value={detalle.fecha_hora ? new Date(detalle.fecha_hora).toLocaleString("es-VE") : null} />
+              <DetalleRow label="Recibe" value={detalle.receptor_nombre} />
+              <DetalleRow label="Tel. de quien recibe" value={detalle.receptor_telefono} />
               <DetalleRow label="Registrada" value={new Date(detalle.fecha_creacion).toLocaleString("es-VE")} />
               {detalle.fecha_actualizacion && (
                 <DetalleRow label="Última edición" value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
@@ -261,14 +316,20 @@ export default function VistaCentro() {
                     <thead>
                       <tr style={{ background: "#f3f4f6" }}>
                         <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre</th>
-                        <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 90 }}>Cantidad</th>
+                        <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 130 }}>Cantidad</th>
                       </tr>
                     </thead>
                     <tbody>
                       {detalle.items.map((item, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                           <td style={{ padding: "6px 10px" }}>{item.nombre}</td>
-                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>{item.cantidad}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>
+                            {item.cantidad_flexible
+                              ? `cualquier cantidad${item.cantidad_resuelta ? ` (${item.cantidad_resuelta} aportado)` : ""}`
+                              : detalle.estado === "Pendiente"
+                                ? item.cantidad
+                                : `${item.cantidad_resuelta ?? 0} / ${item.cantidad}`}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -284,7 +345,19 @@ export default function VistaCentro() {
                   />
                 </div>
               )}
-              {!gestionada(detalle) && (
+              {historial && historial.length > 0 && (
+                <div style={{ marginTop: "0.9rem" }}>
+                  <div className="detalle-label" style={{ marginBottom: "0.4rem" }}>Historial</div>
+                  {historial.map((h, i) => (
+                    <div key={i} style={{ fontSize: "0.8rem", color: "#374151", marginBottom: "0.35rem" }}>
+                      <strong>{EVENTO_LABEL[h.evento] || h.evento}</strong>
+                      {h.usuario ? ` · ${h.usuario}` : ""} · {new Date(h.fecha).toLocaleString("es-VE")}
+                      {h.detalle && <div style={{ color: "#6b7280" }}>{h.detalle}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {puedeEditar(detalle) && (
                 <div style={{ marginTop: "1rem" }}>
                   <button className="btn-secondary" onClick={() => abrirEditar(detalle)}>✏️ Editar solicitud</button>
                 </div>
@@ -322,6 +395,19 @@ export default function VistaCentro() {
                 <label>Fecha y hora del evento
                   <input type="datetime-local" value={editando.fecha_hora}
                     onChange={e => setEditando(p => ({ ...p, fecha_hora: e.target.value }))} />
+                </label>
+
+                <button type="button" className="btn-secondary" style={{ fontSize: "0.78rem", padding: "4px 10px", alignSelf: "flex-start" }}
+                  onClick={() => autocompletarContacto(c => setEditando(p => ({ ...p, receptor_nombre: c.nombre, receptor_telefono: c.telefono || "" })))}>
+                  📇 Usar datos de contacto del centro
+                </button>
+                <label>Nombre de quien recibe
+                  <input value={editando.receptor_nombre}
+                    onChange={e => setEditando(p => ({ ...p, receptor_nombre: e.target.value }))} />
+                </label>
+                <label>Teléfono de quien recibe
+                  <input value={editando.receptor_telefono}
+                    onChange={e => setEditando(p => ({ ...p, receptor_telefono: e.target.value }))} />
                 </label>
 
                 {editando.ubicacion && (
@@ -391,7 +477,7 @@ export default function VistaCentro() {
 }
 
 function TablaItems({ items, onChange }) {
-  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, insumo_id: null }]);
+  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, cantidad_flexible: false, insumo_id: null }]);
   const actualizar = (i, campo, valor) =>
     onChange(items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it));
   const eliminar = (i) => onChange(items.filter((_, idx) => idx !== i));
@@ -411,6 +497,7 @@ function TablaItems({ items, onChange }) {
               <tr style={{ background: "#f3f4f6" }}>
                 <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre del ítem</th>
                 <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 100 }}>Cantidad</th>
+                <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 110 }}>Cualquier cantidad</th>
                 <th style={{ width: 36 }}></th>
               </tr>
             </thead>
@@ -427,11 +514,17 @@ function TablaItems({ items, onChange }) {
                       }} />
                   </td>
                   <td style={{ padding: "4px 6px" }}>
-                    <input type="number" min={0} value={item.cantidad}
+                    <input type="number" min={0} disabled={item.cantidad_flexible}
+                      value={item.cantidad_flexible ? "" : item.cantidad}
                       onChange={e => actualizar(i, "cantidad", e.target.value === "" ? "" : parseInt(e.target.value) || 1)}
                       onBlur={e => { if (!e.target.value || parseInt(e.target.value) < 1) actualizar(i, "cantidad", 1); }}
                       onFocus={e => e.target.select()}
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center" }} />
+                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center",
+                        background: item.cantidad_flexible ? "#f3f4f6" : "#fff" }} />
+                  </td>
+                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                    <input type="checkbox" checked={!!item.cantidad_flexible}
+                      onChange={e => actualizar(i, "cantidad_flexible", e.target.checked)} />
                   </td>
                   <td style={{ padding: "4px 6px", textAlign: "center" }}>
                     <button type="button" onClick={() => eliminar(i)}

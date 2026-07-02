@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-01 (Agregado ícono ojo para mostrar/ocultar contraseña en las tarjetas de credenciales de centros en ModuloCentros — toggle independiente por tarjeta con feather eye/eye-off SVG)
+> **Última actualización:** 2026-07-02 (Notificaciones para centros, autocompletar receptor con contacto del centro, lista de ítems en VistaCentro; mensaje general al resolver + historial; rediseño de Solicitudes Aprobadas; clasificación normalizada por tipo de creador)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -12,9 +12,9 @@
 - Registrar **miembros** del personal (profesores, estudiantes, BR, auxiliares, voluntarios)
 - Organizar miembros en **grupos de trabajo**
 - Registrar **centros de atención** (hospitales, ambulatorios, etc.) con contactos y ubicación geográfica
-- Crear **solicitudes de emergencia** (con prioridad, ubicación, insumos médicos requeridos)
-- Convertir solicitudes en **actividades** tipo Kanban: `Por ejecutar → En ejecución → Ejecutado`
-- Sistema de **comentarios y notificaciones** por actividad
+- Asignar **tareas directas** a los grupos de trabajo (Kanban: `Por ejecutar → En ejecución → Ejecutado`)
+- Crear **solicitudes de recursos/insumos** que pasan por un flujo de aprobación (`Pendiente → Aprobada/Rechazada → Resuelta`) y colaboración entre grupos.
+- Sistema de **comentarios y notificaciones**
 - **Autenticación por roles**: admin, grupo, centro
 
 ---
@@ -59,7 +59,6 @@
 - **PyJWT** — autenticación JWT
 - **werkzeug** — hash de contraseñas (`pbkdf2:sha256`)
 - **gunicorn** — servidor WSGI en producción
-- **flask-cors** — (instalado pero CORS se maneja manualmente en `__init__.py`)
 
 ### Frontend (`frontend/`)
 - **React 18** con JSX
@@ -101,9 +100,10 @@ mesa-de-contingencia/
 │   │       ├── miembros.py       # CRUD /api/miembros
 │   │       ├── grupos.py         # CRUD /api/grupos + gestión de usuarios de grupo
 │   │       ├── centros.py        # CRUD /api/centros + contactos + usuarios de centro
-│   │       ├── solicitudes.py    # CRUD /api/solicitudes + items/insumos
-│   │       ├── actividades.py    # CRUD /api/actividades + asignación de miembros
+│   │       ├── solicitudes.py    # CRUD /api/solicitudes + flujo de aprobación y aportes
+│   │       ├── tareas.py         # CRUD /api/tareas + asignación de miembros (reemplazó actividades.py)
 │   │       ├── comentarios.py    # Comentarios + notificaciones
+│   │       ├── publicaciones.py  # CRUD /api/publicaciones + comentarios de publicaciones
 │   │       └── insumos.py        # GET /api/insumos (búsqueda de catálogo)
 │   └── migrate*.py / seed*.py    # Scripts de migración y seed (varios, históricos)
 ├── frontend/
@@ -116,7 +116,7 @@ mesa-de-contingencia/
 │   └── src/
 │       ├── main.jsx              # ReactDOM.createRoot + AuthProvider
 │       ├── App.jsx               # Layout principal, tabs, routing por estado
-│       ├── App.css               # Todo el CSS de la app (~25KB)
+│       ├── App.css               # Todo el CSS de la app
 │       ├── index.css             # CSS global mínimo
 │       ├── api/
 │       │   └── client.js         # Wrapper fetch: req(), manejo de 401, api.* exports
@@ -124,15 +124,17 @@ mesa-de-contingencia/
 │       │   └── AuthContext.jsx   # Provider de autenticación + verificación periódica
 │       ├── components/
 │       │   ├── Login.jsx
-│       │   ├── ModuloMiembrosGrupos.jsx  # (~37KB) Gestión de miembros y grupos
-│       │   ├── ModuloSolicitudes.jsx     # (~25KB) Gestión de solicitudes
-│       │   ├── ModuloActividades.jsx     # (~22KB) Tablero Kanban de actividades
-│       │   ├── ModuloCentros.jsx         # (~11KB) Gestión de centros de atención
-│       │   ├── VistaCentro.jsx           # (~22KB) Vista para rol "centro"
-│       │   ├── PanelNotificaciones.jsx   # Panel de notificaciones
-│       │   └── MapaPicker.jsx            # Selector de ubicación con Leaflet
+│       │   ├── ModuloMiembrosGrupos.jsx
+│       │   ├── ModuloSolicitudes.jsx         # Creación y gestión de solicitudes
+│       │   ├── ModuloSolicitudesAprobadas.jsx# Tablero para bloquear/desbloquear y aportar a solicitudes (todo inline, sin modal)
+│       │   ├── ModuloTareas.jsx              # Tablero Kanban de tareas directas
+│       │   ├── ModuloCentros.jsx             # Gestión de centros
+│       │   ├── ModuloPublicaciones.jsx       # Tablón de avisos/noticias
+│       │   ├── VistaCentro.jsx               # Vista para rol "centro"
+│       │   ├── PanelNotificaciones.jsx
+│       │   └── MapaPicker.jsx
 │       └── utils/
-│           └── validaciones.js   # Validaciones client-side (espejo de backend)
+│           └── validaciones.js   # Validaciones client-side
 ├── railway.json
 ├── vercel.json
 ├── .gitignore
@@ -148,38 +150,24 @@ mesa-de-contingencia/
 | Tabla | Descripción | Campos clave |
 |-------|------------|--------------|
 | `miembros` | Personal registrado | id, nombre, cedula (unique), telefono, tlf_alternativo, cargo, email |
-| `grupos_trabajo` | Grupos de trabajo | id, nombre, descripcion, representante_principal_id → miembros, es_coordinador |
-| `miembros_grupos` | Relación N:M miembro↔grupo | miembro_id, grupo_id (PK compuesta) |
-| `centros_atencion` | Centros de atención (hospitales, etc.) | id, nombre, descripcion, activo, direccion, lat, lng |
-| `centro_contactos` | Contactos de cada centro | id, centro_id → centros, nombre, cargo, telefono, email |
-| `usuarios` | Usuarios de autenticación | id, username, password_hash, password_plain, rol (admin/grupo/centro), grupo_id, centro_id, activo, session_version |
-| `solicitudes` | Solicitudes de emergencia | id, descripcion, creado_por_grupo_id, creado_por_centro_id, solicitante_id → miembros, ubicacion, fecha_hora, prioridad (Baja/Normal/Alta), lat, lng |
-| `insumos` | Catálogo de insumos médicos | id, codigo, nombre, forma_farmaceutica, concentracion, volumen_peso, disponibilidad, prioridad, precio_referencial |
-| `solicitud_items` | Items de cada solicitud | id, solicitud_id → solicitudes, insumo_id → insumos, nombre, cantidad |
-| `actividades` | Tareas Kanban derivadas de solicitudes | id, solicitud_id → solicitudes, grupo_id → grupos, estado, archivada (soft-delete) |
-| `actividad_miembros` | Miembros asignados a actividades | actividad_id, miembro_id (PK compuesta) |
-| `actividad_comentarios` | Comentarios en actividades | id, actividad_id, autor_username, autor_rol, grupo_id, texto |
-| `notificaciones` | Notificaciones push internas | id, para_rol, para_grupo_id, actividad_id, comentario_id, texto, leida |
-| `publicaciones` | Avisos/noticias generales | id, descripcion, autor_username, grupo_id, eliminada, fecha_creacion |
-| `publicacion_comentarios` | Respuestas/comentarios a publicaciones | id, publicacion_id, autor_username, autor_rol, grupo_id, texto, eliminado, fecha_creacion |
+| `grupos_trabajo` | Grupos de trabajo | id, nombre, descripcion, representante_principal_id, es_coordinador |
+| `miembros_grupos` | Relación N:M miembro↔grupo | miembro_id, grupo_id |
+| `centros_atencion` | Centros de atención | id, nombre, descripcion, activo, direccion, lat, lng |
+| `centro_contactos` | Contactos de centro | id, centro_id, nombre, cargo, telefono, email |
+| `usuarios` | Usuarios de autenticación | id, username, password_hash, password_plain, rol (admin/grupo/centro), grupo_id, centro_id, activo |
+| `tipos_solicitud` | Catálogo fijo (4 valores): clasifica quién originó la solicitud | id, nombre (Grupo/Centro/Administración/Externos) |
+| `solicitudes` | Solicitudes de recursos/insumos | id, estado (Pendiente/Aprobada/Rechazada/Resuelta), descripcion, receptor_nombre, receptor_telefono, creado_por_grupo_id, creado_por_centro_id, reclamado_por_grupo_id, aprobado_por_username, tipo_solicitud_id → tipos_solicitud |
+| `solicitud_log` | Historial/Auditoría de solicitudes (append-only, legible vía `GET /solicitudes/:id/historial`) | id, solicitud_id, evento, usuario, rol, detalle, fecha_creacion |
+| `insumos` | Catálogo de insumos médicos | id, codigo, nombre, forma_farmaceutica, concentracion, disponibilidad, prioridad |
+| `solicitud_items` | Items de cada solicitud | id, solicitud_id, insumo_id, nombre, cantidad, cantidad_flexible |
+| `solicitud_item_aportes` | Aportes parciales a items | id, item_id, grupo_id, cantidad_aportada, comentario |
+| `tareas` | Asignación de trabajo directo | id, grupo_id, estado, descripcion, archivada |
+| `tarea_miembros` | Miembros asignados a tareas | tarea_id, miembro_id |
+| `tarea_comentarios` | Comentarios en tareas | id, tarea_id, autor_username, texto |
+| `notificaciones` | Notificaciones push internas | id, para_rol, para_grupo_id, tarea_id, solicitud_id, texto, leida |
+| `publicaciones` | Avisos/noticias generales | id, descripcion, autor_username, grupo_id, fecha_creacion |
 
-### Relaciones clave
-```
-miembros ←N:M→ grupos_trabajo (via miembros_grupos)
-grupos_trabajo ← representante_principal_id → miembros
-solicitudes ← creado_por_grupo_id → grupos_trabajo
-solicitudes ← creado_por_centro_id → centros_atencion
-solicitudes ← solicitante_id → miembros
-solicitudes ←1:N→ solicitud_items → insumos
-actividades ← solicitud_id → solicitudes (1:1)
-actividades ← grupo_id → grupos_trabajo
-actividades ←N:M→ miembros (via actividad_miembros)
-actividades ←1:N→ actividad_comentarios
-usuarios ← grupo_id → grupos_trabajo
-usuarios ← centro_id → centros_atencion
-publicaciones ← grupo_id → grupos_trabajo
-publicaciones ←1:N→ publicacion_comentarios
-```
+*(Nota: Las tablas `actividades`, `actividad_miembros` y `actividad_comentarios` aún existen en la BD por razones de retrocompatibilidad/legacy, pero han sido reemplazadas funcionalmente por las tablas de `tareas`)*
 
 ---
 
@@ -188,266 +176,102 @@ publicaciones ←1:N→ publicacion_comentarios
 ### Roles
 | Rol | Permisos |
 |-----|----------|
-| `admin` | Todo: CRUD completo en miembros, grupos, centros, solicitudes, actividades. Puede asignar cualquier solicitud a cualquier grupo. Recibe todas las notificaciones. |
-| `coordinador` | Sub-admin (es un `grupo` con flag `es_coordinador = TRUE`). Puede asignar cualquier solicitud, eliminar solicitudes, ver todas las actividades, recibe todas las notificaciones. NO puede gestionar grupos ni centros. (Usa helper `is_privileged()`) |
-| `grupo` | Ve solo su grupo y sus miembros. Puede crear solicitudes propias. Solo se autoasigna actividades de sus solicitudes. Solo recibe notificaciones de su grupo. |
-| `centro` | Vista especial (`VistaCentro.jsx`): puede crear solicitudes desde su centro. No ve el tablero Kanban de admin. |
+| `admin` | Todo: CRUD completo. Puede aprobar/rechazar solicitudes. |
+| `coordinador` | Sub-admin (es un `grupo` con flag `es_coordinador = TRUE`). Aprueba/rechaza solicitudes, ve todas las tareas, recibe todas las notificaciones. |
+| `grupo` | Ve solo su grupo. Crea solicitudes. Ve tablero de Solicitudes Aprobadas para bloquearlas y resolverlas. |
+| `centro` | Vista especial: puede crear solicitudes desde su centro. |
 
 ### Flujo de autenticación
-1. `POST /api/login` → recibe JWT (TTL 8 horas)
-2. Token se guarda en `localStorage` como `mesa_auth`
-3. Todas las requests llevan `Authorization: Bearer <token>`
-4. Si 401 → evento `session-expired` → logout automático
-5. Verificación periódica cada 2 minutos via `GET /api/me`
-
-### Contraseñas
-- Hash con `pbkdf2:sha256` (werkzeug)
-- `password_plain` se almacena en BD para que el admin pueda ver/modificar contraseñas de grupos y centros
-- Al crear un grupo/centro se autogenera usuario con username slug y contraseña aleatoria (10 chars)
+- `POST /api/login` → recibe JWT (TTL 8 horas) guardado en `localStorage` como `mesa_auth`.
+- Header `Authorization: Bearer <token>`.
+- Si el backend retorna 401, el cliente emite evento `session-expired` y fuerza logout.
+- **Seguridad visual**: La pantalla de login (`Login.jsx`) cuenta con un botón (ícono de ojo) para mostrar u ocultar la contraseña escrita.
+- **Gestión de claves para Centros**: Los usuarios con rol `centro` pueden cambiar su propia contraseña manualmente desde su interfaz (`VistaCentro.jsx`).
 
 ---
 
-## 7. API Endpoints Completos
+## 7. API Endpoints Clave
 
-### Autenticación
+### Tareas (Reemplazan a Actividades)
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| POST | `/api/login` | No | Login, retorna JWT + user |
-| POST | `/api/logout` | Sí | Logout (noop actual) |
-| GET | `/api/me` | Sí | Datos del usuario autenticado |
-| GET | `/api/health` | No | Healthcheck con verificación de BD |
+| GET | `/api/tareas` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
+| POST | `/api/tareas` | Auth | Crear tarea directa |
+| PUT | `/api/tareas/:id` | Auth | Cambiar estado (Por ejecutar/En ejecución/Ejecutado) |
+| PUT | `/api/tareas/:id/miembros` | Auth | Asignar miembros a tarea |
+| DELETE | `/api/tareas/:id` | Auth | Soft-delete (archiva la tarea) |
 
-### Miembros
+### Solicitudes (Flujo de Aprobación y Colaboración)
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/miembros` | Auth | Listar (admin: todos, grupo: solo los de su grupo) |
-| POST | `/api/miembros` | Auth | Crear miembro (con validación venezolana) |
-| PUT | `/api/miembros/:id` | Auth | Editar miembro |
-| DELETE | `/api/miembros/:id` | Auth | Eliminar (falla si tiene actividades asignadas) |
+| GET | `/api/solicitudes` | Auth | Listar solicitudes |
+| GET | `/api/solicitudes/mis-centro` | Centro | Solicitudes creadas por el centro autenticado |
+| POST | `/api/solicitudes` | Auth | Crear solicitud (queda "Pendiente") |
+| PUT | `/api/solicitudes/:id/aprobar` | Privileged | Pasar solicitud a "Aprobada" |
+| PUT | `/api/solicitudes/:id/rechazar` | Privileged | Pasar a "Rechazada" (requiere motivo) |
+| GET | `/api/solicitudes/aprobadas` | Auth | Listar solicitudes en el tablero para reclamar |
+| PUT | `/api/solicitudes/:id/reclamar` | Grupo | El grupo asume la resolución de la solicitud (queda En Proceso) |
+| POST | `/api/solicitudes/:id/aportes` | Grupo | Registrar aportes parciales de insumos |
+| PUT | `/api/solicitudes/:id/liberar` | Grupo | Suelta el reclamo (vuelve a Aprobada o pasa a Resuelta si se cubrió todo). Acepta `{ aportes: [...], mensaje }` — `mensaje` es un texto libre general de la resolución (opcional), se guarda en `solicitud_log` y se incluye en la notificación al creador |
+| PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente. Acepta `{ aportes: [...], mensaje }` opcional (mismo formato que `/liberar`) para guardar aportes y mensaje pendientes sin soltar el reclamo antes de forzar el cierre |
+| GET | `/api/solicitudes/:id/historial` | Auth | Eventos de `solicitud_log` para esa solicitud (creada/aprobada/rechazada/reclamada/liberada/resuelta), con su `detalle`. Visible para privilegiados, el grupo/centro dueño, o cualquier grupo si la solicitud está Aprobada/Resuelta |
 
-### Grupos
+### Centros (autoservicio del propio centro)
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/grupos` | Auth | Listar (incluye miembros, representante, usuario) |
-| POST | `/api/grupos` | Admin | Crear grupo + usuario automático |
-| PUT | `/api/grupos/:id` | Admin | Editar grupo |
-| DELETE | `/api/grupos/:id` | Admin | Eliminar (falla si tiene actividades) |
-| GET | `/api/grupos/:id/usuario` | Admin | Ver usuario del grupo |
-| POST | `/api/grupos/:id/usuario` | Admin | Crear usuario para grupo |
-| PUT | `/api/grupos/:id/usuario` | Admin | Cambiar contraseña |
-
-### Centros de Atención
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/centros` | Admin | Listar con contactos y usuario |
-| POST | `/api/centros` | Admin | Crear centro + usuario automático |
-| PUT | `/api/centros/:id` | Admin | Editar centro y contactos |
-| DELETE | `/api/centros/:id` | Admin | Eliminar (falla si tiene solicitudes) |
-| PUT | `/api/centros/:id/usuario` | Auth | Modificar contraseña de centro (admin o propio centro) |
-
-### Solicitudes
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/solicitudes` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
-| GET | `/api/solicitudes/pendientes` | Privileged | Solicitudes sin actividad asignada |
-| GET | `/api/solicitudes/mis-centro` | Centro | Solicitudes del centro autenticado |
-| POST | `/api/solicitudes` | Auth | Crear solicitud (con items/insumos) |
-| PUT | `/api/solicitudes/:id` | Auth | Editar (verifica propiedad) |
-| DELETE | `/api/solicitudes/:id` | Privileged | Eliminar (falla si ya es actividad) |
-
-### Insumos
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/insumos?q=&limit=` | Auth | Buscar en catálogo de insumos médicos |
-
-### Actividades
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/actividades` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
-| POST | `/api/actividades` | Auth | Crear actividad desde solicitud existente (privileged: asigna a cualquiera) |
-| POST | `/api/actividades/rapida` | Auth | Crear solicitud + actividad en un paso |
-| PUT | `/api/actividades/:id` | Auth | Cambiar estado (Por ejecutar/En ejecución/Ejecutado) |
-| PUT | `/api/actividades/:id/miembros` | Auth | Asignar miembros a actividad |
-| DELETE | `/api/actividades/:id` | Auth | Soft-delete (archiva la actividad y libera la solicitud) |
-
-### Comentarios y Notificaciones
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/actividades/:id/comentarios` | Auth | Listar comentarios de actividad |
-| POST | `/api/actividades/:id/comentarios` | Auth | Crear comentario (genera notificación) |
-| GET | `/api/notificaciones` | Auth | Obtener notificaciones del usuario |
-| PUT | `/api/notificaciones/:id/leer` | Auth | Marcar notificación como leída |
-| POST | `/api/notificaciones/leer-todas` | Auth | Marcar todas como leídas |
-
-### Publicaciones
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/publicaciones` | Auth | Listar todas (excluye eliminadas) y num de comentarios |
-| POST | `/api/publicaciones` | Privileged | Crear nueva |
-| DELETE | `/api/publicaciones/:id` | Privileged | Eliminar lógicamente |
-| GET | `/api/publicaciones/:id/comentarios` | Auth | Listar comentarios (excluye eliminados) |
-| POST | `/api/publicaciones/:id/comentarios` | Auth | Crear comentario en publicación |
-| DELETE | `/api/publicaciones/:id/comentarios/:cid` | Auth | Eliminar lógicamente comentario (propio o admin/coord) |
-
-### Insumos
+| GET | `/api/centros/mis-contactos` | Centro | Contactos (`centro_contactos`) del centro autenticado — usado para autocompletar receptor de una solicitud |
 
 ---
 
-## 8. Frontend — Estructura de Vistas
+## 8. Frontend — Navegación
 
-### Navegación por rol
-- **Admin**: Tabs → Miembros y Grupos | Publicaciones | Centros | Solicitudes | Actividades
-- **Grupo**: Tabs → Mi Grupo | Publicaciones | Mis Solicitudes | Mis Actividades
-- **Centro**: Renderiza `VistaCentro.jsx` directamente (sin tabs de admin)
-
-### Componentes principales
-| Componente | Función |
-|-----------|---------|
-| `Login.jsx` | Pantalla de login con logo FacMed UCV y botón SVG para mostrar/ocultar contraseña |
-| `ModuloMiembrosGrupos.jsx` | (~37KB) Gestión de miembros y grupos. Admin ve todos, grupo ve solo los suyos. Modal con validaciones. |
-| `ModuloCentros.jsx` | CRUD de centros de atención con contactos y mapa. Solo admin. |
-| `ModuloSolicitudes.jsx` | CRUD de solicitudes con items/insumos, selector de solicitante, mapa. Prioridad Baja/Normal/Alta. |
-| `ModuloActividades.jsx` | Tablero Kanban con 3 columnas. Cambio de estado drag-like (botones). Comentarios. Asignación de miembros. |
-| `ModuloPublicaciones.jsx` | Tablón de anuncios generales. Visible para todos excepto centros. Solo admin/coordinador pueden publicar/eliminar. |
-| `VistaCentro.jsx` | Vista completa para centros: pueden crear solicitudes, ver su mapa, ver insumos. |
-| `PanelNotificaciones.jsx` | Dropdown de notificaciones con polling, marcar como leídas, navegar a actividad. |
-| `MapaPicker.jsx` | Componente Leaflet para seleccionar lat/lng en un mapa interactivo. |
-
-### API Client (`client.js`)
-- Base URL configurable via `VITE_API_BASE_URL` (default: `/api`)
-- Wrapper `req(method, path, body)` que:
-  - Inyecta JWT desde localStorage
-  - Dispara `session-expired` en 401
-  - Retorna JSON parseado
-  - Lanza Error con mensaje del backend
+- **Admin / Coordinador**: Miembros y Grupos | Publicaciones | Centros | Solicitudes | Tareas | Solicitudes Aprobadas
+- **Grupo**: Mi Grupo | Publicaciones | Mis Solicitudes | Mis Tareas | Solicitudes Aprobadas
+- **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes (con lista de ítems visible directo en la tarjeta, y botón "Usar datos de contacto del centro" para autocompletar receptor/teléfono desde `centro_contactos`), reciben notificaciones (🔔) sobre cambios en sus propias solicitudes, y cambian su propia contraseña mediante un modal dedicado.
 
 ---
 
-## 9. Validaciones (Venezuela-específicas)
+## 9. Notas Importantes / Gotchas
 
-Se implementan tanto en backend (`validaciones.py`) como en frontend (`validaciones.js`):
-
-- **Cédula**: Formato `V-XXXXXXXX` o `E-XXXXXXXX` (6-8 dígitos). Si solo se ingresan dígitos, se normaliza agregando `V-`.
-- **Teléfono**: 11 dígitos exactos. Prefijos válidos venezolanos (móviles: 0412, 0414, 0416, 0424, 0426; fijos: 02XX).
-- **Email**: Validación básica de formato.
-- **Cargos válidos**: Profesor, Estudiante, BR, Auxiliar, Voluntario.
-
----
-
-## 10. Variables de Entorno
-
-### Backend (`backend/.env`)
-```
-DATABASE_URL=postgresql://...    # Connection string Supabase
-DB_SCHEMA=public                 # Esquema PostgreSQL (default: public)
-JWT_SECRET=mesa-contingencia-secret-key-2026  # (default hardcoded)
-```
-
-### Frontend (`frontend/.env`)
-```
-VITE_API_URL=                    # URL del backend desplegado (vacío = /api proxy local)
-```
+1. **Separación Tareas/Solicitudes**: Anteriormente una Actividad dependía de una Solicitud. Ahora son independientes. Una "Tarea" es trabajo directo; una "Solicitud" es un pedido de recursos que pasa por un embudo de aprobación y reclamo colaborativo.
+2. **`password_plain` en BD**: Se almacena la contraseña en texto plano intencionalmente para que admin pueda distribuir credenciales de grupos y centros.
+3. **Solicitudes en Proceso**: Una solicitud `Aprobada` pasa a estado "En Proceso" virtualmente cuando `reclamado_por_grupo_id` tiene un valor. En este estado, los demás grupos reciben un 409 Conflict si intentan editarla. La UI de "Solicitudes Aprobadas" llama a esto "Bloquear/Desbloquear" (los nombres de columnas y endpoints del backend — `reclamar`/`liberar`/`reclamado_por_grupo_id` — no cambiaron, solo la etiqueta visible).
+4. **Cantidades Flexibles**: Los ítems de las solicitudes pueden marcarse como `cantidad_flexible = true` (significa "cualquier cantidad").
+5. **CORS permisivo**: El backend acepta cualquier origen.
+6. **Tipo de Solicitud es automático**: `tipo_solicitud_id` se asigna solo al crear (según quién la crea: grupo→Grupo, centro→Centro, admin sin grupo/centro→Administración, cualquier otro caso→Externos). No hay selector manual ni pantalla para administrar el catálogo — son 4 valores fijos. `Externos` está reservado para un flujo futuro que hoy no existe en la UI.
+7. **Solicitudes Aprobadas sin modal**: Las tarjetas del tablero muestran todo inline (cabecera, ítems, acciones) — no hay vista de detalle en modal. "Terminar y guardar" (`/liberar`) guarda aportes parciales y suelta el bloqueo; "Resolver y guardar" (`/marcar-resuelta`) guarda aportes y fuerza el cierre sin soltar el bloqueo a mitad de camino.
+8. **`solicitud_log` es legible**: dejó de ser una tabla de solo-escritura. `GET /solicitudes/:id/historial` la expone; el frontend la muestra como "Historial" (toggle por tarjeta en Solicitudes Aprobadas, sección fija en el modal de detalle en Mis Solicitudes/VistaCentro). El mensaje general que se escribe al resolver (parcial o completa) se guarda ahí, concatenado al resumen autogenerado — no hizo falta ninguna columna ni tabla nueva.
+9. **Notificaciones para centros sin tocar el esquema**: `notificaciones.para_grupo_id` no tiene FK real, así que se reutiliza para guardar el `centro_id` cuando `para_rol = 'centro'` (antes solo existía `para_rol IN ('admin','grupo')`). Toda consulta sobre esa tabla filtra siempre por `(para_rol, para_grupo_id)` juntos — nunca por el id solo — así que no hay riesgo de que un id de grupo choque con un id de centro. `_notificar_creador()` en `solicitudes.py` decide el `para_rol` según si la solicitud la creó un grupo o un centro.
 
 ---
 
-## 11. Desarrollo Local
+## 10. Flujo de Negocio Principal
 
-```bash
-# Terminal 1 — Backend
-cd backend
-pip install -r requirements.txt
-cp .env.example .env  # configurar DATABASE_URL
-python run.py         # → http://localhost:5000
+### Ciclo de vida de una Tarea (Trabajo Directo)
+1. **Creación**: admin/coordinador asigna a cualquier grupo, o un grupo crea para sí mismo. (No requiere ítems, ni flujo de aprobación).
+2. **Estados**: `Por ejecutar → En ejecución → Ejecutado`
+3. **Colaboración**: se pueden agregar miembros y comentarios.
+4. **Cierre**: eliminar la tarea la marca como archivada.
 
-# Terminal 2 — Frontend
-cd frontend
-npm install
-npm run dev           # → http://localhost:5173 (proxy /api → :5000)
-```
-
-- Vite proxea `/api/*` a `http://localhost:5000` en desarrollo
-- Health check: `http://localhost:5000/api/health`
-
----
-
-## 12. Patrones y Convenciones del Código
-
-### Backend
-- **No usa ORM**: SQL directo con psycopg2 y `%s` placeholders
-- **Patrón factory**: `create_app()` en `__init__.py`
-- **Blueprint único**: `main_bp` registrado con prefijo implícito `/api/`
-- **CORS manual**: Se aplica en `after_request` (no usa flask-cors realmente)
-- **Conexiones**: Se abren y cierran en cada request (`get_connection()` / `conn.close()`)
-- **Decoradores de auth**: `@require_auth` (cualquier usuario logueado), `@require_admin` (solo admin)
-- **Auto-creación de usuarios**: Al crear grupo o centro se genera usuario automático con slug del nombre
-
-### Frontend
-- **Sin router**: Navegación por estado (`tab` en `App.jsx`)
-- **Single CSS file**: Todo el estilo en `App.css`
-- **AuthContext**: Provider global para auth state
-- **api client**: Objeto `api` con métodos para cada endpoint
-- **Componentes grandes**: Los módulos son archivos monolíticos (20-37KB) con estado local
+### Ciclo de vida de una Solicitud (Pedidos e Insumos)
+1. **Creación (`Pendiente`)**: un grupo o centro pide insumos. Define items (con o sin cantidades exactas) y datos del receptor.
+2. **Aprobación**: un admin/coordinador aprueba (`→ Aprobada`) o rechaza (`→ Rechazada` con motivo).
+3. **Tablero Aprobadas**: los grupos ven las solicitudes `Aprobadas`.
+4. **Reclamar**: un grupo reclama la solicitud. Queda bloqueada para otros.
+5. **Aportar y Liberar**: el grupo registra aportes parciales y luego libera la solicitud:
+   - Si los ítems se cubrieron → `Resuelta`.
+   - Si falta algo → vuelve a `Aprobada` para que otro (o el mismo) grupo la reclame luego.
+   - Alternativa: forzar "marcar-resuelta" si eran cantidades flexibles.
+6. **Notificaciones y Logs**: Se avisa al creador en aprobaciones/rechazos/resoluciones. Todo queda registrado en `solicitud_log`.
 
 ---
 
-## 13. Historial de Migraciones
+## 11. Organización de Planes de Trabajo
 
-El proyecto migró de **Azure SQL Server (MSSQL)** a **Supabase (PostgreSQL)**:
-- `schema.sql` → esquema legacy MSSQL
-- `schema_supabase.sql` → esquema actual PostgreSQL
-- Múltiples scripts `migrate*.py` y `seed*.py` documentan las migraciones incrementales
-- Driver cambió de `pymssql` a `psycopg2-binary`
+Toda iniciativa de cierto tamaño (más de una sesión, más de un archivo) se planifica y documenta en `planes/AAAA-MM-nombre-corto/`, **no** en archivos sueltos en la raíz del repo. Cada carpeta contiene:
 
----
+- `plan.md` — contexto, decisiones y diseño técnico, escrito **antes** de implementar (normalmente sale de una sesión en modo plan).
+- `todo.md` — checklist de ejecución fase por fase, que se va marcando a medida que se avanza. Incluye el checklist de despliegue a producción cuando aplica.
+- `resumen.md` (opcional) — resumen post-implementación, solo si hace falta para retomar contexto rápido más allá de lo que ya dicen `plan.md`/`todo.md`.
 
-## 14. Notas Importantes / Gotchas
-
-1. **`password_plain` en BD**: Se almacena la contraseña en texto plano para que admin pueda verla. Esto es intencional para el caso de uso (mesa de contingencia interna, admin necesita distribuir credenciales).
-
-2. **Logout es noop**: `logout_token()` está vacío. No hay blacklist de tokens. El JWT simplemente expira después de 8 horas.
-
-3. **Solicitud → Actividad es 1:1**: Una solicitud solo puede tener una actividad. La validación impide duplicar.
-
-4. **Insumos se auto-crean**: Si un item de solicitud refiere un nombre que no existe en el catálogo de insumos, se crea automáticamente.
-
-5. **CORS permisivo**: El backend acepta cualquier origen (`Origin: *` o el origin real del request).
-
-6. **Frontend sin build optimizations**: Un solo CSS monolítico y componentes grandes. No hay code splitting ni lazy loading.
-
-7. **Mapas**: Usan Leaflet con tiles de OpenStreetMap. Centros y solicitudes pueden tener coordenadas lat/lng.
-
-8. **Branches**: `main` es la rama principal. `dev` apunta al mismo commit que `main` actualmente.
-
----
-
-## 15. Flujo de Negocio Principal
-
-```
-1. Admin crea Grupos de Trabajo
-   └── Se auto-genera usuario para cada grupo
-
-2. Admin crea Centros de Atención
-   └── Se auto-genera usuario para cada centro
-
-3. Admin/Grupo/Centro registra Miembros en sus grupos
-
-4. Grupo o Centro crea Solicitud de emergencia
-   ├── Describe la emergencia
-   ├── Asigna prioridad (Baja/Normal/Alta)
-   ├── Agrega items/insumos necesarios
-   └── Opcionalmente marca ubicación en mapa
-
-5. Admin o Coordinador revisa Solicitudes Pendientes
-   └── Las asigna a un Grupo → se crea Actividad
-
-   (O el grupo puede autoasignarse su propia solicitud)
-   (O se usa "Actividad Rápida" para crear solicitud+actividad en un paso)
-
-6. Grupo ejecuta la Actividad
-   ├── Por ejecutar → En ejecución → Ejecutado
-   ├── Asigna miembros del grupo a la actividad
-   └── Admin y Grupo intercambian Comentarios
-
-7. Sistema genera Notificaciones
-   └── Se notifica al admin y al grupo cuando hay nuevos comentarios
-```
+**Regla:** cuando se vaya a implementar un plan nuevo, su `plan.md` y su `todo.md` se guardan juntos en su propia carpeta dentro de `planes/`, siguiendo este mismo esquema — no se crean como archivos `.md` sueltos en la raíz. Las carpetas de iniciativas ya completadas no se borran (quedan como registro histórico). Ver `planes/README.md` para el detalle completo de la convención y el índice de iniciativas.
