@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-01 (Implementados selectores de visibilidad de contraseña en los modals de cambiar contraseña en VistaCentro y ModuloCentros)
+> **Última actualización:** 2026-07-01 (Agregado ícono ojo para mostrar/ocultar contraseña en las tarjetas de credenciales de centros en ModuloCentros — toggle independiente por tarjeta con feather eye/eye-off SVG)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
