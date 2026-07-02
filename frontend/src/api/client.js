@@ -85,7 +85,7 @@ export const api = {
   },
   reclamarSolicitud: (id) => req("PUT", `/solicitudes/${id}/reclamar`),
   liberarSolicitud: (id, aportes) => req("PUT", `/solicitudes/${id}/liberar`, { aportes }),
-  marcarResueltaSolicitud: (id) => req("PUT", `/solicitudes/${id}/marcar-resuelta`),
+  marcarResueltaSolicitud: (id, aportes = []) => req("PUT", `/solicitudes/${id}/marcar-resuelta`, { aportes }),
 
   buscarInsumos: (q) => req("GET", `/insumos?q=${encodeURIComponent(q)}&limit=10`),
 

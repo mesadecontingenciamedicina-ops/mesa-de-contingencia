@@ -446,6 +446,21 @@ def _item_cubierto(cur, item_id):
     return aportado >= cantidad
 
 
+def _guardar_aportes(cur, sol_id, user, aportes):
+    for aporte in aportes:
+        item_id = aporte.get("item_id")
+        cantidad = int(aporte.get("cantidad") or 0)
+        if not item_id or cantidad <= 0:
+            continue
+        cur.execute("SELECT id FROM solicitud_items WHERE id = %s AND solicitud_id = %s", (item_id, sol_id))
+        if not cur.fetchone():
+            continue
+        cur.execute("""
+            INSERT INTO solicitud_item_aportes (item_id, grupo_id, cantidad, comentario)
+            VALUES (%s, %s, %s, %s)
+        """, (item_id, user["grupo_id"], cantidad, (aporte.get("comentario") or "").strip() or None))
+
+
 @main_bp.put("/api/solicitudes/<int:sol_id>/liberar")
 @require_auth
 def liberar_solicitud(sol_id):
@@ -467,18 +482,7 @@ def liberar_solicitud(sol_id):
         conn.close()
         return jsonify({"error": "Solo el grupo que la reclamó puede liberarla"}), 403
 
-    for aporte in aportes:
-        item_id = aporte.get("item_id")
-        cantidad = int(aporte.get("cantidad") or 0)
-        if not item_id or cantidad <= 0:
-            continue
-        cur.execute("SELECT id FROM solicitud_items WHERE id = %s AND solicitud_id = %s", (item_id, sol_id))
-        if not cur.fetchone():
-            continue
-        cur.execute("""
-            INSERT INTO solicitud_item_aportes (item_id, grupo_id, cantidad, comentario)
-            VALUES (%s, %s, %s, %s)
-        """, (item_id, user["grupo_id"], cantidad, (aporte.get("comentario") or "").strip() or None))
+    _guardar_aportes(cur, sol_id, user, aportes)
 
     cur.execute("SELECT id, cantidad_flexible FROM solicitud_items WHERE solicitud_id = %s", (sol_id,))
     items = cur.fetchall()
@@ -514,9 +518,12 @@ def liberar_solicitud(sol_id):
 @main_bp.put("/api/solicitudes/<int:sol_id>/marcar-resuelta")
 @require_auth
 def marcar_resuelta_solicitud(sol_id):
-    """Fuerza el cierre de una solicitud (sin ítems, o con ítems de cantidad flexible)
-    que el grupo reclamante considera completa."""
+    """Fuerza el cierre de una solicitud que el grupo reclamante considera completa,
+    guardando de paso cualquier aporte pendiente (misma lógica que /liberar, pero sin
+    soltar el reclamo aunque no se hayan cubierto todos los ítems)."""
     user = get_current_user()
+    data = request.get_json() or {}
+    aportes = data.get("aportes", [])
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT estado, reclamado_por_grupo_id FROM solicitudes WHERE id = %s", (sol_id,))
@@ -530,11 +537,13 @@ def marcar_resuelta_solicitud(sol_id):
     if row[1] != user.get("grupo_id"):
         conn.close()
         return jsonify({"error": "Solo el grupo que la reclamó puede marcarla como resuelta"}), 403
+    _guardar_aportes(cur, sol_id, user, aportes)
     cur.execute("""
         UPDATE solicitudes SET estado = 'Resuelta', fecha_actualizacion = NOW()
         WHERE id = %s
     """, (sol_id,))
-    _log(cur, sol_id, "resuelta", user, detalle="marcada manualmente")
+    detalle = f"marcada manualmente, {len(aportes)} ítem(s) aportado(s)" if aportes else "marcada manualmente"
+    _log(cur, sol_id, "resuelta", user, detalle=detalle)
     _notificar_creador(cur, sol_id, "📦 Tu solicitud fue marcada como resuelta.")
     conn.commit()
     conn.close()

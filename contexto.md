@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-02 (Clasificación normalizada de Solicitudes por tipo de creador — Grupo/Centro/Administración/Externos — y reorganización de planes de trabajo en `planes/`)
+> **Última actualización:** 2026-07-02 (Rediseño del tablero de Solicitudes Aprobadas — tarjetas inline sin modal, bloquear/desbloquear — y clasificación normalizada de Solicitudes por tipo de creador)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -126,7 +126,7 @@ mesa-de-contingencia/
 │       │   ├── Login.jsx
 │       │   ├── ModuloMiembrosGrupos.jsx
 │       │   ├── ModuloSolicitudes.jsx         # Creación y gestión de solicitudes
-│       │   ├── ModuloSolicitudesAprobadas.jsx# Tablero para reclamar y aportar a solicitudes
+│       │   ├── ModuloSolicitudesAprobadas.jsx# Tablero para bloquear/desbloquear y aportar a solicitudes (todo inline, sin modal)
 │       │   ├── ModuloTareas.jsx              # Tablero Kanban de tareas directas
 │       │   ├── ModuloCentros.jsx             # Gestión de centros
 │       │   ├── ModuloPublicaciones.jsx       # Tablón de avisos/noticias
@@ -178,7 +178,7 @@ mesa-de-contingencia/
 |-----|----------|
 | `admin` | Todo: CRUD completo. Puede aprobar/rechazar solicitudes. |
 | `coordinador` | Sub-admin (es un `grupo` con flag `es_coordinador = TRUE`). Aprueba/rechaza solicitudes, ve todas las tareas, recibe todas las notificaciones. |
-| `grupo` | Ve solo su grupo. Crea solicitudes. Ve tablero de Solicitudes Aprobadas para reclamarlas. |
+| `grupo` | Ve solo su grupo. Crea solicitudes. Ve tablero de Solicitudes Aprobadas para bloquearlas y resolverlas. |
 | `centro` | Vista especial: puede crear solicitudes desde su centro. |
 
 ### Flujo de autenticación
@@ -212,7 +212,7 @@ mesa-de-contingencia/
 | PUT | `/api/solicitudes/:id/reclamar` | Grupo | El grupo asume la resolución de la solicitud (queda En Proceso) |
 | POST | `/api/solicitudes/:id/aportes` | Grupo | Registrar aportes parciales de insumos |
 | PUT | `/api/solicitudes/:id/liberar` | Grupo | Suelta el reclamo (vuelve a Aprobada o pasa a Resuelta si se cubrió todo) |
-| PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente |
+| PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente. Acepta `{ aportes: [...] }` opcional (mismo formato que `/liberar`) para guardar aportes pendientes sin soltar el reclamo antes de forzar el cierre |
 
 ---
 
@@ -228,10 +228,11 @@ mesa-de-contingencia/
 
 1. **Separación Tareas/Solicitudes**: Anteriormente una Actividad dependía de una Solicitud. Ahora son independientes. Una "Tarea" es trabajo directo; una "Solicitud" es un pedido de recursos que pasa por un embudo de aprobación y reclamo colaborativo.
 2. **`password_plain` en BD**: Se almacena la contraseña en texto plano intencionalmente para que admin pueda distribuir credenciales de grupos y centros.
-3. **Solicitudes en Proceso**: Una solicitud `Aprobada` pasa a estado "En Proceso" virtualmente cuando `reclamado_por_grupo_id` tiene un valor. En este estado, los demás grupos reciben un 409 Conflict si intentan editarla.
+3. **Solicitudes en Proceso**: Una solicitud `Aprobada` pasa a estado "En Proceso" virtualmente cuando `reclamado_por_grupo_id` tiene un valor. En este estado, los demás grupos reciben un 409 Conflict si intentan editarla. La UI de "Solicitudes Aprobadas" llama a esto "Bloquear/Desbloquear" (los nombres de columnas y endpoints del backend — `reclamar`/`liberar`/`reclamado_por_grupo_id` — no cambiaron, solo la etiqueta visible).
 4. **Cantidades Flexibles**: Los ítems de las solicitudes pueden marcarse como `cantidad_flexible = true` (significa "cualquier cantidad").
 5. **CORS permisivo**: El backend acepta cualquier origen.
 6. **Tipo de Solicitud es automático**: `tipo_solicitud_id` se asigna solo al crear (según quién la crea: grupo→Grupo, centro→Centro, admin sin grupo/centro→Administración, cualquier otro caso→Externos). No hay selector manual ni pantalla para administrar el catálogo — son 4 valores fijos. `Externos` está reservado para un flujo futuro que hoy no existe en la UI.
+7. **Solicitudes Aprobadas sin modal**: Las tarjetas del tablero muestran todo inline (cabecera, ítems, acciones) — no hay vista de detalle en modal. "Terminar y guardar" (`/liberar`) guarda aportes parciales y suelta el bloqueo; "Resolver y guardar" (`/marcar-resuelta`) guarda aportes y fuerza el cierre sin soltar el bloqueo a mitad de camino.
 
 ---
 
