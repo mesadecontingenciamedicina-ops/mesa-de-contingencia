@@ -28,5 +28,6 @@ planes/
 | [`2026-07-cambio-vista-solicitudes-aprobadas/`](2026-07-cambio-vista-solicitudes-aprobadas/) | Rediseño de tarjetas en el tablero de Solicitudes Aprobadas: todo inline (bloquear/desbloquear, ítems, terminar/resolver), sin modal | Implementado en `dev`, pendiente desplegar a producción |
 | [`2026-07-mensaje-general-resolucion/`](2026-07-mensaje-general-resolucion/) | Mensaje libre general al resolver (parcial o completa), reutilizando `solicitud_log`; nuevo endpoint de historial visible para creador y resolutor | Implementado en `dev`, pendiente desplegar a producción |
 | [`2026-07-mejoras-vista-centro/`](2026-07-mejoras-vista-centro/) | Autocompletar receptor con contacto del centro, lista de ítems en la tarjeta, notificaciones para centros (reutilizando `para_grupo_id`, sin migración) | Implementado en `dev`, **sin probar por el agente** (a pedido del usuario) |
+| [`2026-07-despliegue-produccion/`](2026-07-despliegue-produccion/) | Plan consolidado para llevar las 5 iniciativas anteriores a `public`/`main` (migraciones, orden, validación, rollback) | **Planeado, sin ejecutar** |
 
 Ver `contexto.md` (raíz del repo) para el estado general y actualizado de la arquitectura — los planes acá documentan el *por qué* de cada cambio, `contexto.md` documenta el *estado actual*.

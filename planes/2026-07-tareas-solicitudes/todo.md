@@ -53,6 +53,8 @@
 
 ### Checklist detallado — Despliegue a Producción
 
+> ⚠️ **Superado por `../2026-07-despliegue-produccion/todo.md`.** Se acumularon más iniciativas sobre `dev` después de escribir esto (tipo de solicitud, rediseño de Solicitudes Aprobadas, mensaje general, VistaCentro), así que el checklist de despliegue vivo y actualizado es el de esa carpeta — este queda solo como el borrador original.
+
 **1. Base de datos (`public`, producción)**
 - [ ] Hacer un respaldo/export de la base `public` antes de tocar nada (Supabase → Database → Backups, o `pg_dump`)
 - [ ] Ejecutar `backend/migrate_tareas_solicitudes.py` contra `public` (con `DB_SCHEMA=public`, es aditivo — no toca `actividades` ni nada existente)
