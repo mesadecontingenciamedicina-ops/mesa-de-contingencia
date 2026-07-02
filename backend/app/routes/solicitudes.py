@@ -141,15 +141,25 @@ def _log(cur, solicitud_id, evento, user, detalle=None):
 
 
 def _notificar_creador(cur, sol_id, texto):
-    cur.execute("SELECT creado_por_grupo_id FROM solicitudes WHERE id = %s", (sol_id,))
+    cur.execute("SELECT creado_por_grupo_id, creado_por_centro_id FROM solicitudes WHERE id = %s", (sol_id,))
     row = cur.fetchone()
-    if row and row[0]:
+    if not row:
+        return
+    grupo_id, centro_id = row
+    if grupo_id:
         cur.execute("""
             INSERT INTO notificaciones (para_rol, para_grupo_id, solicitud_id, texto)
             VALUES ('grupo', %s, %s, %s)
-        """, (row[0], sol_id, texto))
-    # Los centros aún no tienen feed de notificaciones (ver contexto.md); se enteran
-    # al refrescar su lista de solicitudes.
+        """, (grupo_id, sol_id, texto))
+    elif centro_id:
+        # No existe columna para_centro_id (para no alterar el esquema): la columna
+        # para_grupo_id no tiene FK real, así que se reutiliza para guardar el
+        # centro_id cuando para_rol = 'centro'. Toda consulta filtra siempre por
+        # (para_rol, para_grupo_id) juntos, nunca por el id solo — ver comentarios.py.
+        cur.execute("""
+            INSERT INTO notificaciones (para_rol, para_grupo_id, solicitud_id, texto)
+            VALUES ('centro', %s, %s, %s)
+        """, (centro_id, sol_id, texto))
 
 
 @main_bp.post("/api/solicitudes")

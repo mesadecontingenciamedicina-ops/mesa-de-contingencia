@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-02 (Mensaje general al resolver una solicitud + historial de eventos visible; rediseño del tablero de Solicitudes Aprobadas; clasificación normalizada por tipo de creador)
+> **Última actualización:** 2026-07-02 (Notificaciones para centros, autocompletar receptor con contacto del centro, lista de ítems en VistaCentro; mensaje general al resolver + historial; rediseño de Solicitudes Aprobadas; clasificación normalizada por tipo de creador)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -205,6 +205,7 @@ mesa-de-contingencia/
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
 | GET | `/api/solicitudes` | Auth | Listar solicitudes |
+| GET | `/api/solicitudes/mis-centro` | Centro | Solicitudes creadas por el centro autenticado |
 | POST | `/api/solicitudes` | Auth | Crear solicitud (queda "Pendiente") |
 | PUT | `/api/solicitudes/:id/aprobar` | Privileged | Pasar solicitud a "Aprobada" |
 | PUT | `/api/solicitudes/:id/rechazar` | Privileged | Pasar a "Rechazada" (requiere motivo) |
@@ -215,13 +216,18 @@ mesa-de-contingencia/
 | PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente. Acepta `{ aportes: [...], mensaje }` opcional (mismo formato que `/liberar`) para guardar aportes y mensaje pendientes sin soltar el reclamo antes de forzar el cierre |
 | GET | `/api/solicitudes/:id/historial` | Auth | Eventos de `solicitud_log` para esa solicitud (creada/aprobada/rechazada/reclamada/liberada/resuelta), con su `detalle`. Visible para privilegiados, el grupo/centro dueño, o cualquier grupo si la solicitud está Aprobada/Resuelta |
 
+### Centros (autoservicio del propio centro)
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/centros/mis-contactos` | Centro | Contactos (`centro_contactos`) del centro autenticado — usado para autocompletar receptor de una solicitud |
+
 ---
 
 ## 8. Frontend — Navegación
 
 - **Admin / Coordinador**: Miembros y Grupos | Publicaciones | Centros | Solicitudes | Tareas | Solicitudes Aprobadas
 - **Grupo**: Mi Grupo | Publicaciones | Mis Solicitudes | Mis Tareas | Solicitudes Aprobadas
-- **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes, y cambiar su propia contraseña mediante un modal dedicado.
+- **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes (con lista de ítems visible directo en la tarjeta, y botón "Usar datos de contacto del centro" para autocompletar receptor/teléfono desde `centro_contactos`), reciben notificaciones (🔔) sobre cambios en sus propias solicitudes, y cambian su propia contraseña mediante un modal dedicado.
 
 ---
 
@@ -235,6 +241,7 @@ mesa-de-contingencia/
 6. **Tipo de Solicitud es automático**: `tipo_solicitud_id` se asigna solo al crear (según quién la crea: grupo→Grupo, centro→Centro, admin sin grupo/centro→Administración, cualquier otro caso→Externos). No hay selector manual ni pantalla para administrar el catálogo — son 4 valores fijos. `Externos` está reservado para un flujo futuro que hoy no existe en la UI.
 7. **Solicitudes Aprobadas sin modal**: Las tarjetas del tablero muestran todo inline (cabecera, ítems, acciones) — no hay vista de detalle en modal. "Terminar y guardar" (`/liberar`) guarda aportes parciales y suelta el bloqueo; "Resolver y guardar" (`/marcar-resuelta`) guarda aportes y fuerza el cierre sin soltar el bloqueo a mitad de camino.
 8. **`solicitud_log` es legible**: dejó de ser una tabla de solo-escritura. `GET /solicitudes/:id/historial` la expone; el frontend la muestra como "Historial" (toggle por tarjeta en Solicitudes Aprobadas, sección fija en el modal de detalle en Mis Solicitudes/VistaCentro). El mensaje general que se escribe al resolver (parcial o completa) se guarda ahí, concatenado al resumen autogenerado — no hizo falta ninguna columna ni tabla nueva.
+9. **Notificaciones para centros sin tocar el esquema**: `notificaciones.para_grupo_id` no tiene FK real, así que se reutiliza para guardar el `centro_id` cuando `para_rol = 'centro'` (antes solo existía `para_rol IN ('admin','grupo')`). Toda consulta sobre esa tabla filtra siempre por `(para_rol, para_grupo_id)` juntos — nunca por el id solo — así que no hay riesgo de que un id de grupo choque con un id de centro. `_notificar_creador()` en `solicitudes.py` decide el `para_rol` según si la solicitud la creó un grupo o un centro.
 
 ---
 

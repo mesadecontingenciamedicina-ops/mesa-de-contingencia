@@ -67,6 +67,7 @@ export const api = {
   eliminarCentro: (id) => req("DELETE", `/centros/${id}`),
   getUsuarioCentro: (id) => req("GET", `/centros/${id}/usuario`),
   cambiarPasswordCentro: (id, d) => req("PUT", `/centros/${id}/usuario`, d),
+  getMisContactos: () => req("GET", "/centros/mis-contactos"),
   getSolicitudesCentro: () => req("GET", "/solicitudes/mis-centro"),
 
   getSolicitudes: (estado) => req("GET", `/solicitudes${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`),

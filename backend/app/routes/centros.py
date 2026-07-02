@@ -29,6 +29,19 @@ def _get_contactos(cur, centro_id):
             for r in cur.fetchall()]
 
 
+@main_bp.get("/api/centros/mis-contactos")
+@require_auth
+def mis_contactos_centro():
+    user = get_current_user()
+    if user["rol"] != "centro":
+        return jsonify({"error": "Acceso denegado"}), 403
+    conn = get_connection()
+    cur = conn.cursor()
+    contactos = _get_contactos(cur, user["centro_id"])
+    conn.close()
+    return jsonify(contactos)
+
+
 @main_bp.get("/api/centros")
 @require_admin
 def listar_centros():

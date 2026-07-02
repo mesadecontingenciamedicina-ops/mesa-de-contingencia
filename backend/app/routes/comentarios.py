@@ -27,6 +27,15 @@ def get_notificaciones():
                 WHERE para_rol = 'admin' OR (para_rol = 'grupo' AND para_grupo_id = %s)
                 ORDER BY fecha_creacion DESC
             """, (user["grupo_id"],))
+    elif user["rol"] == "centro":
+        # para_grupo_id no tiene FK real; se reutiliza para guardar el centro_id
+        # cuando para_rol = 'centro' (ver _notificar_creador en solicitudes.py).
+        cur.execute(f"""
+            SELECT id, tarea_id, solicitud_id, texto, leida, fecha_creacion
+            FROM notificaciones
+            WHERE para_rol = 'centro' AND para_grupo_id = %s
+            ORDER BY fecha_creacion DESC
+        """, (user["centro_id"],))
     else:
         cur.execute(f"""
             SELECT id, tarea_id, solicitud_id, texto, leida, fecha_creacion
@@ -65,6 +74,11 @@ def leer_todas():
                 UPDATE notificaciones SET leida = TRUE
                 WHERE para_rol = 'admin' OR (para_rol = 'grupo' AND para_grupo_id = %s)
             """, (user["grupo_id"],))
+    elif user["rol"] == "centro":
+        cur.execute(f"""
+            UPDATE notificaciones SET leida = TRUE
+            WHERE para_rol = 'centro' AND para_grupo_id = %s
+        """, (user["centro_id"],))
     else:
         cur.execute(f"""
             UPDATE notificaciones SET leida = TRUE

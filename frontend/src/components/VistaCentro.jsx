@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import PanelNotificaciones from "./PanelNotificaciones";
 
 const PRIORIDADES = ["Baja", "Normal", "Alta"];
 const PRIORIDAD_COLOR = { Alta: "#dc2626", Normal: "#d97706", Baja: "#6b7280" };
@@ -71,11 +72,26 @@ export default function VistaCentro() {
     logout();
   };
 
+  const irANotificacion = (n) => {
+    if (!n.solicitud_id) return;
+    const s = solicitudes.find(x => x.id === n.solicitud_id);
+    if (s) setDetalle(s);
+  };
+
   const reload = async () => setSolicitudes(await api.getSolicitudesCentro());
   useEffect(() => { reload(); }, []);
 
   const flash = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 4000); };
   const f = (campo, valor) => setForm(p => ({ ...p, [campo]: valor }));
+
+  const autocompletarContacto = async (aplicar) => {
+    try {
+      const contactos = await api.getMisContactos();
+      if (!contactos.length) return flash("Este centro no tiene contactos registrados.", false);
+      const c = contactos[0];
+      aplicar(c);
+    } catch (err) { flash(err.message, false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -132,6 +148,7 @@ export default function VistaCentro() {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <PanelNotificaciones onNotifClick={irANotificacion} />
             <button className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 10px", height: "fit-content" }}
               onClick={() => { setModalPassword({ id: user.centro_id, centro_nombre: user.centro_nombre, password: "" }); setShowPassword(false); }}>
               🔑 Cambiar Contraseña
@@ -183,6 +200,10 @@ export default function VistaCentro() {
                   onChange={e => f("fecha_hora", e.target.value)} />
               </label>
 
+              <button type="button" className="btn-secondary" style={{ fontSize: "0.78rem", padding: "4px 10px", alignSelf: "flex-start" }}
+                onClick={() => autocompletarContacto(c => setForm(p => ({ ...p, receptor_nombre: c.nombre, receptor_telefono: c.telefono || "" })))}>
+                📇 Usar datos de contacto del centro
+              </button>
               <label>Nombre de quien recibe
                 <input value={form.receptor_nombre}
                   onChange={e => f("receptor_nombre", e.target.value)}
@@ -232,9 +253,6 @@ export default function VistaCentro() {
                     </div>
                     <p className="card-desc" style={{ marginTop: "0.35rem" }}>{s.descripcion}</p>
                     <div className="sol-meta">
-                      {s.items && s.items.length > 0 && (
-                        <span>📦 {s.items.length} ítem{s.items.length !== 1 ? "s" : ""}</span>
-                      )}
                       {s.ubicacion && <span>📍 {s.ubicacion.slice(0, 60)}{s.ubicacion.length > 60 ? "…" : ""}</span>}
                       {s.fecha_hora && <span>🕐 {new Date(s.fecha_hora).toLocaleString("es-VE")}</span>}
                       <span className="date">Creada: {new Date(s.fecha_creacion).toLocaleDateString("es-VE")}</span>
@@ -242,6 +260,11 @@ export default function VistaCentro() {
                         <span className="date" style={{ color: "#d97706" }}>✏️ {new Date(s.fecha_actualizacion).toLocaleString("es-VE")}</span>
                       )}
                     </div>
+                    {s.items && s.items.length > 0 && (
+                      <p style={{ fontSize: "0.8rem", color: "#374151", marginTop: "0.4rem" }}>
+                        📦 <strong>Ítems:</strong> {s.items.map(i => `${i.nombre}${i.cantidad_flexible ? " (cualquier cantidad)" : ` (${i.cantidad})`}`).join(", ")}
+                      </p>
+                    )}
                     {s.estado === "Rechazada" && s.rechazo_motivo && (
                       <p style={{ fontSize: "0.8rem", color: "#dc2626", marginTop: "0.4rem" }}>❌ Motivo: {s.rechazo_motivo}</p>
                     )}
@@ -374,6 +397,10 @@ export default function VistaCentro() {
                     onChange={e => setEditando(p => ({ ...p, fecha_hora: e.target.value }))} />
                 </label>
 
+                <button type="button" className="btn-secondary" style={{ fontSize: "0.78rem", padding: "4px 10px", alignSelf: "flex-start" }}
+                  onClick={() => autocompletarContacto(c => setEditando(p => ({ ...p, receptor_nombre: c.nombre, receptor_telefono: c.telefono || "" })))}>
+                  📇 Usar datos de contacto del centro
+                </button>
                 <label>Nombre de quien recibe
                   <input value={editando.receptor_nombre}
                     onChange={e => setEditando(p => ({ ...p, receptor_nombre: e.target.value }))} />
