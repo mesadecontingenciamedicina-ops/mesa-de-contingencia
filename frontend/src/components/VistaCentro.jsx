@@ -13,6 +13,10 @@ const ESTADO_LABEL = {
   Rechazada: "❌ Rechazada",
   Resuelta: "✔ Resuelta",
 };
+const EVENTO_LABEL = {
+  creada: "Creada", aprobada: "Aprobada", rechazada: "Rechazada", reenviada: "Reenviada",
+  editada: "Editada", reclamada: "Bloqueada", liberada: "Avance guardado", resuelta: "Resuelta",
+};
 
 function nowLocal() {
   const d = new Date();
@@ -38,8 +42,14 @@ export default function VistaCentro() {
   const [editando, setEditando] = useState(null);
   const [msg, setMsg] = useState(null);
   const [detalle, setDetalle] = useState(null);
+  const [historial, setHistorial] = useState(null);
   const [modalPassword, setModalPassword] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (!detalle) { setHistorial(null); return; }
+    api.getHistorialSolicitud(detalle.id).then(setHistorial).catch(() => setHistorial([]));
+  }, [detalle?.id]);
 
   const handleGuardarPassword = async (e) => {
     e.preventDefault();
@@ -310,6 +320,18 @@ export default function VistaCentro() {
                     width="100%" height="180"
                     style={{ border: "1px solid #e5e7eb", borderRadius: 8, display: "block" }}
                   />
+                </div>
+              )}
+              {historial && historial.length > 0 && (
+                <div style={{ marginTop: "0.9rem" }}>
+                  <div className="detalle-label" style={{ marginBottom: "0.4rem" }}>Historial</div>
+                  {historial.map((h, i) => (
+                    <div key={i} style={{ fontSize: "0.8rem", color: "#374151", marginBottom: "0.35rem" }}>
+                      <strong>{EVENTO_LABEL[h.evento] || h.evento}</strong>
+                      {h.usuario ? ` · ${h.usuario}` : ""} · {new Date(h.fecha).toLocaleString("es-VE")}
+                      {h.detalle && <div style={{ color: "#6b7280" }}>{h.detalle}</div>}
+                    </div>
+                  ))}
                 </div>
               )}
               {puedeEditar(detalle) && (

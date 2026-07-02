@@ -14,6 +14,11 @@ const ESTADO_BG    = { Pendiente: "#fef3c7", Aprobada: "#dcfce7", Rechazada: "#f
 
 const TIPOS_SOLICITUD = ["Grupo", "Centro", "Administración", "Externos"];
 
+const EVENTO_LABEL = {
+  creada: "Creada", aprobada: "Aprobada", rechazada: "Rechazada", reenviada: "Reenviada",
+  editada: "Editada", reclamada: "Bloqueada", liberada: "Avance guardado", resuelta: "Resuelta",
+};
+
 function nowLocal() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -41,6 +46,7 @@ export default function ModuloSolicitudes({ onDataChange }) {
   const [msg,            setMsg]            = useState(null);
   const [procesando,     setProcesando]     = useState({});
   const [detalle,        setDetalle]        = useState(null);
+  const [historial,      setHistorial]      = useState(null);
   const [editando,       setEditando]       = useState(null);
   const [modalRechazo,   setModalRechazo]   = useState(null);
   const [motivoRechazo,  setMotivoRechazo]  = useState("");
@@ -51,6 +57,11 @@ export default function ModuloSolicitudes({ onDataChange }) {
     setLista(await api.getSolicitudes(isPrivileged ? (estadoFiltro === "Todas" ? null : estadoFiltro) : null));
   };
   useEffect(() => { reload(); }, [estadoFiltro]);
+
+  useEffect(() => {
+    if (!detalle) { setHistorial(null); return; }
+    api.getHistorialSolicitud(detalle.id).then(setHistorial).catch(() => setHistorial([]));
+  }, [detalle?.id]);
 
   const visibles = lista.filter(s => tipoFiltro === "Todas" || s.tipo_solicitud === tipoFiltro);
 
@@ -412,6 +423,18 @@ export default function ModuloSolicitudes({ onDataChange }) {
             {detalle.lat && (
               <div style={{ marginTop:"0.75rem" }}>
                 <MapaReadOnly lat={detalle.lat} lng={detalle.lng} />
+              </div>
+            )}
+            {historial && historial.length > 0 && (
+              <div style={{ marginTop: "0.9rem" }}>
+                <div className="detalle-label" style={{ marginBottom: "0.4rem" }}>Historial</div>
+                {historial.map((h, i) => (
+                  <div key={i} style={{ fontSize: "0.8rem", color: "#374151", marginBottom: "0.35rem" }}>
+                    <strong>{EVENTO_LABEL[h.evento] || h.evento}</strong>
+                    {h.usuario ? ` · ${h.usuario}` : ""} · {new Date(h.fecha).toLocaleString("es-VE")}
+                    {h.detalle && <div style={{ color: "#6b7280" }}>{h.detalle}</div>}
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -84,8 +84,9 @@ export const api = {
     return req("GET", `/solicitudes/aprobadas${qs ? `?${qs}` : ""}`);
   },
   reclamarSolicitud: (id) => req("PUT", `/solicitudes/${id}/reclamar`),
-  liberarSolicitud: (id, aportes) => req("PUT", `/solicitudes/${id}/liberar`, { aportes }),
-  marcarResueltaSolicitud: (id, aportes = []) => req("PUT", `/solicitudes/${id}/marcar-resuelta`, { aportes }),
+  liberarSolicitud: (id, aportes, mensaje) => req("PUT", `/solicitudes/${id}/liberar`, { aportes, mensaje }),
+  marcarResueltaSolicitud: (id, aportes = [], mensaje) => req("PUT", `/solicitudes/${id}/marcar-resuelta`, { aportes, mensaje }),
+  getHistorialSolicitud: (id) => req("GET", `/solicitudes/${id}/historial`),
 
   buscarInsumos: (q) => req("GET", `/insumos?q=${encodeURIComponent(q)}&limit=10`),
 

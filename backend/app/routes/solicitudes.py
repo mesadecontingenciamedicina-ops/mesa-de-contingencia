@@ -461,12 +461,18 @@ def _guardar_aportes(cur, sol_id, user, aportes):
         """, (item_id, user["grupo_id"], cantidad, (aporte.get("comentario") or "").strip() or None))
 
 
+def _detalle_con_mensaje(base, mensaje):
+    mensaje = (mensaje or "").strip()
+    return f"{base} — {mensaje}" if mensaje else base
+
+
 @main_bp.put("/api/solicitudes/<int:sol_id>/liberar")
 @require_auth
 def liberar_solicitud(sol_id):
     user = get_current_user()
     data = request.get_json() or {}
     aportes = data.get("aportes", [])
+    mensaje = data.get("mensaje")
 
     conn = get_connection()
     cur = conn.cursor()
@@ -491,14 +497,17 @@ def liberar_solicitud(sol_id):
         _item_cubierto(cur, item_id) for item_id, _flex in items
     )
 
-    detalle = f"{len(aportes)} ítem(s) aportado(s)" if aportes else "liberada sin aportes"
+    detalle = _detalle_con_mensaje(f"{len(aportes)} ítem(s) aportado(s)" if aportes else "liberada sin aportes", mensaje)
     if todo_cubierto:
         cur.execute("""
             UPDATE solicitudes SET estado = 'Resuelta', fecha_actualizacion = NOW()
             WHERE id = %s
         """, (sol_id,))
         _log(cur, sol_id, "resuelta", user, detalle=detalle)
-        _notificar_creador(cur, sol_id, "📦 Tu solicitud fue resuelta por completo.")
+        texto = "📦 Tu solicitud fue resuelta por completo."
+        if mensaje:
+            texto += f" Mensaje: {mensaje.strip()[:200]}"
+        _notificar_creador(cur, sol_id, texto)
         nuevo_estado = "Resuelta"
     else:
         cur.execute("""
@@ -506,8 +515,11 @@ def liberar_solicitud(sol_id):
             WHERE id = %s
         """, (sol_id,))
         _log(cur, sol_id, "liberada", user, detalle=detalle)
-        if aportes:
-            _notificar_creador(cur, sol_id, "📦 Un grupo aportó a tu solicitud. Sigue disponible para completarla.")
+        if aportes or mensaje:
+            texto = "📦 Un grupo aportó a tu solicitud. Sigue disponible para completarla."
+            if mensaje:
+                texto += f" Mensaje: {mensaje.strip()[:200]}"
+            _notificar_creador(cur, sol_id, texto)
         nuevo_estado = "Aprobada"
 
     conn.commit()
@@ -524,6 +536,7 @@ def marcar_resuelta_solicitud(sol_id):
     user = get_current_user()
     data = request.get_json() or {}
     aportes = data.get("aportes", [])
+    mensaje = data.get("mensaje")
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT estado, reclamado_por_grupo_id FROM solicitudes WHERE id = %s", (sol_id,))
@@ -542,9 +555,50 @@ def marcar_resuelta_solicitud(sol_id):
         UPDATE solicitudes SET estado = 'Resuelta', fecha_actualizacion = NOW()
         WHERE id = %s
     """, (sol_id,))
-    detalle = f"marcada manualmente, {len(aportes)} ítem(s) aportado(s)" if aportes else "marcada manualmente"
+    detalle = _detalle_con_mensaje(
+        f"marcada manualmente, {len(aportes)} ítem(s) aportado(s)" if aportes else "marcada manualmente", mensaje)
     _log(cur, sol_id, "resuelta", user, detalle=detalle)
-    _notificar_creador(cur, sol_id, "📦 Tu solicitud fue marcada como resuelta.")
+    texto = "📦 Tu solicitud fue marcada como resuelta."
+    if mensaje:
+        texto += f" Mensaje: {mensaje.strip()[:200]}"
+    _notificar_creador(cur, sol_id, texto)
     conn.commit()
     conn.close()
     return jsonify({"id": sol_id, "estado": "Resuelta"})
+
+
+@main_bp.get("/api/solicitudes/<int:sol_id>/historial")
+@require_auth
+def historial_solicitud(sol_id):
+    user = get_current_user()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT estado, creado_por_grupo_id, creado_por_centro_id
+        FROM solicitudes WHERE id = %s
+    """, (sol_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Solicitud no encontrada"}), 404
+    estado, grupo_id, centro_id = row
+
+    permitido = (
+        is_privileged(user)
+        or (user["rol"] == "grupo" and (grupo_id == user["grupo_id"] or estado in ("Aprobada", "Resuelta")))
+        or (user["rol"] == "centro" and centro_id == user.get("centro_id"))
+    )
+    if not permitido:
+        conn.close()
+        return jsonify({"error": "Acceso denegado"}), 403
+
+    cur.execute("""
+        SELECT evento, usuario, rol, detalle, fecha_creacion
+        FROM solicitud_log WHERE solicitud_id = %s ORDER BY fecha_creacion ASC
+    """, (sol_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify([
+        {"evento": r[0], "usuario": r[1], "rol": r[2], "detalle": r[3], "fecha": str(r[4])}
+        for r in rows
+    ])

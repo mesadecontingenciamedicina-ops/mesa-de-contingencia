@@ -26,5 +26,6 @@ planes/
 | [`2026-07-tareas-solicitudes/`](2026-07-tareas-solicitudes/) | Separar Tareas (trabajo directo) de Solicitudes (pedidos de insumos con flujo de aprobación), antes acopladas vía Actividades | Implementado en `dev`, pendiente desplegar a producción |
 | [`2026-07-tipo-solicitud/`](2026-07-tipo-solicitud/) | Clasificación normalizada de Solicitudes por tipo de creador (Grupo/Centro/Administración/Externos) | Implementado en `dev`, pendiente desplegar a producción |
 | [`2026-07-cambio-vista-solicitudes-aprobadas/`](2026-07-cambio-vista-solicitudes-aprobadas/) | Rediseño de tarjetas en el tablero de Solicitudes Aprobadas: todo inline (bloquear/desbloquear, ítems, terminar/resolver), sin modal | Implementado en `dev`, pendiente desplegar a producción |
+| [`2026-07-mensaje-general-resolucion/`](2026-07-mensaje-general-resolucion/) | Mensaje libre general al resolver (parcial o completa), reutilizando `solicitud_log`; nuevo endpoint de historial visible para creador y resolutor | Implementado en `dev`, pendiente desplegar a producción |
 
 Ver `contexto.md` (raíz del repo) para el estado general y actualizado de la arquitectura — los planes acá documentan el *por qué* de cada cambio, `contexto.md` documenta el *estado actual*.

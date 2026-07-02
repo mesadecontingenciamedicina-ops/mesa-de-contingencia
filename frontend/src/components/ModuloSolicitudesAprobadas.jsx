@@ -5,6 +5,11 @@ import { useAuth } from "../context/AuthContext";
 const PRIORIDAD_COLOR = { Alta: "#dc2626", Normal: "#d97706", Baja: "#6b7280" };
 const PRIORIDAD_BG    = { Alta: "#fee2e2", Normal: "#fef3c7", Baja: "#f3f4f6" };
 
+const EVENTO_LABEL = {
+  creada: "Creada", aprobada: "Aprobada", rechazada: "Rechazada", reenviada: "Reenviada",
+  editada: "Editada", reclamada: "Bloqueada", liberada: "Avance guardado", resuelta: "Resuelta",
+};
+
 export default function ModuloSolicitudesAprobadas() {
   const { user } = useAuth();
   const puedeBloquear = user.rol === "grupo";
@@ -15,6 +20,8 @@ export default function ModuloSolicitudesAprobadas() {
   const [msg,            setMsg]            = useState(null);
   const [procesando,     setProcesando]     = useState({});
   const [aportes,        setAportes]        = useState({});
+  const [mensajes,       setMensajes]       = useState({});
+  const [historiales,    setHistoriales]    = useState({});
 
   const reload = async () => {
     const data = await api.getSolicitudesAprobadas();
@@ -47,7 +54,10 @@ export default function ModuloSolicitudesAprobadas() {
       .filter(a => a.cantidad > 0);
   };
 
-  const limpiarAportes = (solId) => setAportes(p => ({ ...p, [solId]: {} }));
+  const limpiarAportes = (solId) => {
+    setAportes(p => ({ ...p, [solId]: {} }));
+    setMensajes(p => ({ ...p, [solId]: "" }));
+  };
 
   const bloquear = async (s) => {
     setProcesando(p => ({ ...p, [s.id]: true }));
@@ -62,7 +72,7 @@ export default function ModuloSolicitudesAprobadas() {
   const terminarYGuardar = async (s) => {
     setProcesando(p => ({ ...p, [s.id]: true }));
     try {
-      await api.liberarSolicitud(s.id, construirAportes(s));
+      await api.liberarSolicitud(s.id, construirAportes(s), mensajes[s.id]);
       limpiarAportes(s.id);
       await reload();
       flash("Aportes guardados.");
@@ -74,12 +84,23 @@ export default function ModuloSolicitudesAprobadas() {
     if (!confirm("¿Marcar esta solicitud como resuelta por completo?")) return;
     setProcesando(p => ({ ...p, [s.id]: true }));
     try {
-      await api.marcarResueltaSolicitud(s.id, construirAportes(s));
+      await api.marcarResueltaSolicitud(s.id, construirAportes(s), mensajes[s.id]);
       limpiarAportes(s.id);
       await reload();
       flash("Solicitud marcada como resuelta.");
     } catch (err) { flash(err.message, false); }
     finally { setProcesando(p => ({ ...p, [s.id]: false })); }
+  };
+
+  const toggleHistorial = async (s) => {
+    if (historiales[s.id]) {
+      setHistoriales(p => { const cp = { ...p }; delete cp[s.id]; return cp; });
+      return;
+    }
+    try {
+      const data = await api.getHistorialSolicitud(s.id);
+      setHistoriales(p => ({ ...p, [s.id]: data }));
+    } catch (err) { flash(err.message, false); }
   };
 
   return (
@@ -154,6 +175,24 @@ export default function ModuloSolicitudesAprobadas() {
                           </p>
                         : <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.4rem" }}>🟢 Disponible para bloquear</p>
                       }
+                      <button type="button" className="btn-ghost" style={{ padding: "2px 8px", fontSize: "0.78rem", marginTop: "0.2rem" }}
+                        onClick={() => toggleHistorial(s)}>
+                        {historiales[s.id] ? "▲ Ocultar historial" : "🕘 Ver historial"}
+                      </button>
+                      {historiales[s.id] && (
+                        <div style={{ marginTop: "0.4rem", borderTop: "1px solid #e5e7eb", paddingTop: "0.4rem" }}>
+                          {historiales[s.id].length === 0
+                            ? <p style={{ fontSize: "0.78rem", color: "#6b7280" }}>Sin eventos registrados.</p>
+                            : historiales[s.id].map((h, i) => (
+                                <div key={i} style={{ fontSize: "0.78rem", color: "#374151", marginBottom: "0.3rem" }}>
+                                  <strong>{EVENTO_LABEL[h.evento] || h.evento}</strong>
+                                  {h.usuario ? ` · ${h.usuario}` : ""} · {new Date(h.fecha).toLocaleString("es-VE")}
+                                  {h.detalle && <div style={{ color: "#6b7280" }}>{h.detalle}</div>}
+                                </div>
+                              ))
+                          }
+                        </div>
+                      )}
                     </div>
                     {puedeBloquear && (!enProceso || mia) && (
                       <button className={mia ? "btn-secondary" : "btn-assign"} disabled={procesando[s.id]}
@@ -213,15 +252,24 @@ export default function ModuloSolicitudesAprobadas() {
                     </div>
                   )}
 
-                  {/* Acciones de cierre */}
+                  {/* Mensaje general de la resolución + acciones de cierre */}
                   {mia && (
-                    <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "0.9rem", flexWrap: "wrap" }}>
-                      <button className="btn-primary" disabled={procesando[s.id]} onClick={() => terminarYGuardar(s)}>
-                        {procesando[s.id] ? "..." : "💾 Terminar y guardar"}
-                      </button>
-                      <button className="btn-secondary" disabled={procesando[s.id]} onClick={() => resolverYGuardar(s)}>
-                        {procesando[s.id] ? "..." : "✅ Resolver y guardar"}
-                      </button>
+                    <div style={{ marginTop: "0.9rem" }}>
+                      <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, marginBottom: "0.3rem" }}>
+                        Mensaje general de esta resolución (opcional)
+                      </label>
+                      <textarea rows={2} placeholder="Ej: se entregó todo en mano al receptor a las 3pm..."
+                        value={mensajes[s.id] ?? ""}
+                        onChange={e => setMensajes(p => ({ ...p, [s.id]: e.target.value }))}
+                        style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 6, padding: "6px 10px", fontSize: "0.85rem", fontFamily: "inherit", resize: "vertical" }} />
+                      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "0.6rem", flexWrap: "wrap" }}>
+                        <button className="btn-primary" disabled={procesando[s.id]} onClick={() => terminarYGuardar(s)}>
+                          {procesando[s.id] ? "..." : "💾 Terminar y guardar"}
+                        </button>
+                        <button className="btn-secondary" disabled={procesando[s.id]} onClick={() => resolverYGuardar(s)}>
+                          {procesando[s.id] ? "..." : "✅ Resolver y guardar"}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

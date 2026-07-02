@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-02 (Rediseño del tablero de Solicitudes Aprobadas — tarjetas inline sin modal, bloquear/desbloquear — y clasificación normalizada de Solicitudes por tipo de creador)
+> **Última actualización:** 2026-07-02 (Mensaje general al resolver una solicitud + historial de eventos visible; rediseño del tablero de Solicitudes Aprobadas; clasificación normalizada por tipo de creador)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -157,7 +157,7 @@ mesa-de-contingencia/
 | `usuarios` | Usuarios de autenticación | id, username, password_hash, password_plain, rol (admin/grupo/centro), grupo_id, centro_id, activo |
 | `tipos_solicitud` | Catálogo fijo (4 valores): clasifica quién originó la solicitud | id, nombre (Grupo/Centro/Administración/Externos) |
 | `solicitudes` | Solicitudes de recursos/insumos | id, estado (Pendiente/Aprobada/Rechazada/Resuelta), descripcion, receptor_nombre, receptor_telefono, creado_por_grupo_id, creado_por_centro_id, reclamado_por_grupo_id, aprobado_por_username, tipo_solicitud_id → tipos_solicitud |
-| `solicitud_log` | Historial/Auditoría de solicitudes | id, solicitud_id, evento, actor_username, fecha |
+| `solicitud_log` | Historial/Auditoría de solicitudes (append-only, legible vía `GET /solicitudes/:id/historial`) | id, solicitud_id, evento, usuario, rol, detalle, fecha_creacion |
 | `insumos` | Catálogo de insumos médicos | id, codigo, nombre, forma_farmaceutica, concentracion, disponibilidad, prioridad |
 | `solicitud_items` | Items de cada solicitud | id, solicitud_id, insumo_id, nombre, cantidad, cantidad_flexible |
 | `solicitud_item_aportes` | Aportes parciales a items | id, item_id, grupo_id, cantidad_aportada, comentario |
@@ -211,8 +211,9 @@ mesa-de-contingencia/
 | GET | `/api/solicitudes/aprobadas` | Auth | Listar solicitudes en el tablero para reclamar |
 | PUT | `/api/solicitudes/:id/reclamar` | Grupo | El grupo asume la resolución de la solicitud (queda En Proceso) |
 | POST | `/api/solicitudes/:id/aportes` | Grupo | Registrar aportes parciales de insumos |
-| PUT | `/api/solicitudes/:id/liberar` | Grupo | Suelta el reclamo (vuelve a Aprobada o pasa a Resuelta si se cubrió todo) |
-| PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente. Acepta `{ aportes: [...] }` opcional (mismo formato que `/liberar`) para guardar aportes pendientes sin soltar el reclamo antes de forzar el cierre |
+| PUT | `/api/solicitudes/:id/liberar` | Grupo | Suelta el reclamo (vuelve a Aprobada o pasa a Resuelta si se cubrió todo). Acepta `{ aportes: [...], mensaje }` — `mensaje` es un texto libre general de la resolución (opcional), se guarda en `solicitud_log` y se incluye en la notificación al creador |
+| PUT | `/api/solicitudes/:id/marcar-resuelta` | Grupo | Cierra la solicitud manualmente. Acepta `{ aportes: [...], mensaje }` opcional (mismo formato que `/liberar`) para guardar aportes y mensaje pendientes sin soltar el reclamo antes de forzar el cierre |
+| GET | `/api/solicitudes/:id/historial` | Auth | Eventos de `solicitud_log` para esa solicitud (creada/aprobada/rechazada/reclamada/liberada/resuelta), con su `detalle`. Visible para privilegiados, el grupo/centro dueño, o cualquier grupo si la solicitud está Aprobada/Resuelta |
 
 ---
 
@@ -233,6 +234,7 @@ mesa-de-contingencia/
 5. **CORS permisivo**: El backend acepta cualquier origen.
 6. **Tipo de Solicitud es automático**: `tipo_solicitud_id` se asigna solo al crear (según quién la crea: grupo→Grupo, centro→Centro, admin sin grupo/centro→Administración, cualquier otro caso→Externos). No hay selector manual ni pantalla para administrar el catálogo — son 4 valores fijos. `Externos` está reservado para un flujo futuro que hoy no existe en la UI.
 7. **Solicitudes Aprobadas sin modal**: Las tarjetas del tablero muestran todo inline (cabecera, ítems, acciones) — no hay vista de detalle en modal. "Terminar y guardar" (`/liberar`) guarda aportes parciales y suelta el bloqueo; "Resolver y guardar" (`/marcar-resuelta`) guarda aportes y fuerza el cierre sin soltar el bloqueo a mitad de camino.
+8. **`solicitud_log` es legible**: dejó de ser una tabla de solo-escritura. `GET /solicitudes/:id/historial` la expone; el frontend la muestra como "Historial" (toggle por tarjeta en Solicitudes Aprobadas, sección fija en el modal de detalle en Mis Solicitudes/VistaCentro). El mensaje general que se escribe al resolver (parcial o completa) se guarda ahí, concatenado al resumen autogenerado — no hizo falta ninguna columna ni tabla nueva.
 
 ---
 
