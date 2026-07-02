@@ -135,10 +135,10 @@ def crear_grupo():
 def eliminar_grupo(grupo_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(f"SELECT COUNT(*) FROM actividades WHERE grupo_id = %s", (grupo_id,))
+    cur.execute(f"SELECT COUNT(*) FROM tareas WHERE grupo_id = %s", (grupo_id,))
     if cur.fetchone()[0] > 0:
         conn.close()
-        return jsonify({"error": "Este grupo tiene actividades asignadas y no puede eliminarse"}), 409
+        return jsonify({"error": "Este grupo tiene tareas asignadas y no puede eliminarse"}), 409
     cur.execute(f"DELETE FROM usuarios WHERE grupo_id = %s AND rol = 'grupo'", (grupo_id,))
     cur.execute(f"DELETE FROM miembros_grupos WHERE grupo_id = %s", (grupo_id,))
     cur.execute(f"DELETE FROM grupos_trabajo WHERE id = %s", (grupo_id,))

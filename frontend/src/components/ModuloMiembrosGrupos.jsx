@@ -360,7 +360,7 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
           <div className="ver-registros">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
-                Personas del equipo administrativo asignables a actividades.
+                Personas del equipo administrativo asignables a tareas.
               </p>
               <button className="btn-primary" onClick={() => setModalPA({ ...FORM_PA })}>
                 + Nuevo

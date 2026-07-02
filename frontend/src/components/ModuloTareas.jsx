@@ -14,12 +14,12 @@ const COLOR = {
   "Ejecutado":    "#27ae60",
 };
 
-export default function ModuloActividades({ refresh, abrirActividadId, onActividadAbierta }) {
+export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) {
   const { user } = useAuth();
   const isAdmin = user.rol === "admin";
   const isPrivileged = isAdmin || user.es_coordinador;
 
-  const [actividades,   setActividades]   = useState([]);
+  const [tareas,        setTareas]        = useState([]);
   const [miembros,      setMiembros]      = useState([]);
   const [gruposAll,     setGruposAll]     = useState([]);
   const [filtroGrupo,   setFiltroGrupo]   = useState("todos");
@@ -30,57 +30,57 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
   const [modalMiembros, setModalMiembros] = useState(null);
   const [seleccion,     setSeleccion]     = useState(new Set());
   const [guardando,     setGuardando]     = useState(false);
-  const [modalRapida,   setModalRapida]   = useState(null);
+  const [modalNueva,    setModalNueva]    = useState(null);
   const [creando,       setCreando]       = useState(false);
 
-  const FORM_RAPIDA = { descripcion: "", grupo_id: "", prioridad: "Normal", ubicacion: "", lat: null, lng: null, fecha_hora: "" };
+  const FORM_NUEVA = { descripcion: "", grupo_id: "", prioridad: "Normal", ubicacion: "", lat: null, lng: null, fecha_hora: "" };
 
   const reload = async () => {
-    const [acts, ms, gs] = await Promise.all([api.getActividades(), api.getMiembros(), api.getGrupos()]);
-    setActividades(acts);
+    const [ts, ms, gs] = await Promise.all([api.getTareas(), api.getMiembros(), api.getGrupos()]);
+    setTareas(ts);
     setMiembros(ms);
     setGruposAll(gs);
-    return acts;
+    return ts;
   };
 
   useEffect(() => { reload(); }, [refresh]);
 
-  // Abrir actividad desde notificación
+  // Abrir tarea desde notificación
   useEffect(() => {
-    if (!abrirActividadId || actividades.length === 0) return;
-    const act = actividades.find(a => a.id === abrirActividadId);
-    if (act) {
-      abrirDetalle(act);
-      onActividadAbierta?.();
+    if (!abrirTareaId || tareas.length === 0) return;
+    const t = tareas.find(x => x.id === abrirTareaId);
+    if (t) {
+      abrirDetalle(t);
+      onTareaAbierta?.();
     }
-  }, [abrirActividadId, actividades]);
+  }, [abrirTareaId, tareas]);
 
-  const abrirDetalle = (act) => { setDetalle(act); setTabDetalle("info"); };
+  const abrirDetalle = (t) => { setDetalle(t); setTabDetalle("info"); };
 
-  const grupos = [...new Map(actividades.map(a => [a.grupo.id, a.grupo])).values()];
+  const grupos = [...new Map(tareas.map(t => [t.grupo.id, t.grupo])).values()];
   const visibles = filtroGrupo === "todos"
-    ? actividades
-    : actividades.filter(a => String(a.grupo.id) === filtroGrupo);
-  const byEstado = (estado) => visibles.filter(a => a.estado === estado);
+    ? tareas
+    : tareas.filter(t => String(t.grupo.id) === filtroGrupo);
+  const byEstado = (estado) => visibles.filter(t => t.estado === estado);
 
-  const cambiarEstado = async (act, estado) => {
-    setLoading(p => ({ ...p, [act.id]: true }));
+  const cambiarEstado = async (t, estado) => {
+    setLoading(p => ({ ...p, [t.id]: true }));
     try {
-      await api.actualizarActividad(act.id, estado);
-      const acts = await reload();
-      if (detalle?.id === act.id) {
-        const updated = acts.find(a => a.id === act.id);
+      await api.actualizarTarea(t.id, estado);
+      const ts = await reload();
+      if (detalle?.id === t.id) {
+        const updated = ts.find(x => x.id === t.id);
         if (updated) setDetalle(updated);
       }
     } finally {
-      setLoading(p => ({ ...p, [act.id]: false }));
+      setLoading(p => ({ ...p, [t.id]: false }));
     }
   };
 
-  const abrirModalMiembros = (act, e) => {
+  const abrirModalMiembros = (t, e) => {
     e?.stopPropagation();
-    setSeleccion(new Set(act.miembros.map(m => m.id)));
-    setModalMiembros(act);
+    setSeleccion(new Set(t.miembros.map(m => m.id)));
+    setModalMiembros(t);
   };
 
   const toggleMiembro = (id) => {
@@ -91,14 +91,14 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
     });
   };
 
-  const submitRapida = async (e) => {
+  const submitNueva = async (e) => {
     e.preventDefault();
     setCreando(true);
     try {
-      const payload = { ...modalRapida };
+      const payload = { ...modalNueva };
       if (user.rol === "grupo") payload.grupo_id = user.grupo_id;
-      await api.crearActividadRapida(payload);
-      setModalRapida(null);
+      await api.crearTarea(payload);
+      setModalNueva(null);
       await reload();
     } catch (err) {
       alert(err.message);
@@ -110,10 +110,10 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
   const guardarMiembros = async () => {
     setGuardando(true);
     try {
-      await api.setMiembrosActividad(modalMiembros.id, [...seleccion]);
-      const acts = await reload();
+      await api.setMiembrosTarea(modalMiembros.id, [...seleccion]);
+      const ts = await reload();
       if (detalle?.id === modalMiembros.id) {
-        const updated = acts.find(a => a.id === modalMiembros.id);
+        const updated = ts.find(x => x.id === modalMiembros.id);
         if (updated) setDetalle(updated);
       }
       setModalMiembros(null);
@@ -125,7 +125,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
   return (
     <div className="modulo">
       <div className="act-header">
-        <h2>📊 Tablero de Actividades</h2>
+        <h2>📊 Tablero de Tareas</h2>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           {(isPrivileged || grupos.length > 1) && (
             <div className="filtro-grupo" style={{ position: "relative" }}>
@@ -142,8 +142,8 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
               >
                 <span>
                   {filtroGrupo === "todos"
-                    ? `Todos (${actividades.length})`
-                    : `${grupos.find(g => String(g.id) === filtroGrupo)?.nombre || "Grupo"} (${actividades.filter(a => String(a.grupo.id) === filtroGrupo).length})`}
+                    ? `Todos (${tareas.length})`
+                    : `${grupos.find(g => String(g.id) === filtroGrupo)?.nombre || "Grupo"} (${tareas.filter(t => String(t.grupo.id) === filtroGrupo).length})`}
                 </span>
                 <span>▼</span>
               </div>
@@ -164,7 +164,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                       style={{ padding: "0.5rem 0.75rem", cursor: "pointer", borderBottom: "1px solid #f3f4f6", fontSize: "0.85rem" }}
                       onClick={() => { setFiltroGrupo("todos"); setFiltroAbierto(false); }}
                     >
-                      Todos ({actividades.length})
+                      Todos ({tareas.length})
                     </div>
                     {grupos.map(g => (
                       <div
@@ -176,7 +176,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                         }}
                         onClick={() => { setFiltroGrupo(String(g.id)); setFiltroAbierto(false); }}
                       >
-                        {g.nombre} ({actividades.filter(a => a.grupo.id === g.id).length})
+                        {g.nombre} ({tareas.filter(t => t.grupo.id === g.id).length})
                       </div>
                     ))}
                   </div>
@@ -184,8 +184,8 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
               )}
             </div>
           )}
-          <button className="btn-primary" onClick={() => setModalRapida({ ...FORM_RAPIDA })}>
-            + Nueva Actividad
+          <button className="btn-primary" onClick={() => setModalNueva({ ...FORM_NUEVA })}>
+            + Nueva Tarea
           </button>
         </div>
       </div>
@@ -201,23 +201,23 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
             </div>
             <div className="kanban-cards">
               {byEstado(estado).length === 0
-                ? <p className="empty">Sin actividades</p>
-                : byEstado(estado).map(act => (
-                  <div key={act.id} className="kanban-card"
+                ? <p className="empty">Sin tareas</p>
+                : byEstado(estado).map(t => (
+                  <div key={t.id} className="kanban-card"
                     style={{ cursor: "pointer" }}
-                    onClick={() => abrirDetalle(act)}
+                    onClick={() => abrirDetalle(t)}
                   >
-                    <p className="kcard-desc">{act.solicitud.descripcion}</p>
-                    <small className="kcard-meta">🏷️ {act.grupo.nombre}</small>
+                    <p className="kcard-desc">{t.descripcion}</p>
+                    <small className="kcard-meta">🏷️ {t.grupo.nombre}</small>
                     <small className="kcard-date">
-                      Asignado: {new Date(act.fecha_asignacion).toLocaleDateString("es-VE")}
+                      Asignada: {new Date(t.fecha_asignacion).toLocaleDateString("es-VE")}
                     </small>
 
                     <div className="kcard-trabajando" onClick={e => e.stopPropagation()}>
                       <span className="trabajando-label">Trabajando:</span>
-                      {act.miembros.length === 0
+                      {t.miembros.length === 0
                         ? <span className="trabajando-vacio">Sin asignar</span>
-                        : act.miembros.map(m => (
+                        : t.miembros.map(m => (
                           <span key={m.id} className="trabajando-chip">
                             {m.nombre.split(" ")[0]}{m.cargo ? ` (${m.cargo})` : ""}
                           </span>
@@ -225,17 +225,17 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                       }
                       <button className="btn-asignar-miembros"
                         title="Asignar miembros"
-                        onClick={e => abrirModalMiembros(act, e)}>
+                        onClick={e => abrirModalMiembros(t, e)}>
                         ✏️
                       </button>
                     </div>
 
                     <div className="kcard-actions" onClick={e => e.stopPropagation()}>
                       {ESTADOS.filter(e => e !== estado).map(e => (
-                        <button key={e} disabled={loading[act.id]}
+                        <button key={e} disabled={loading[t.id]}
                           className="btn-estado"
                           style={{ borderColor: COLOR[e], color: COLOR[e] }}
-                          onClick={() => cambiarEstado(act, e)}
+                          onClick={() => cambiarEstado(t, e)}
                         >
                           → {e}
                         </button>
@@ -258,12 +258,12 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                 background: COLOR[detalle.estado] + "22", color: COLOR[detalle.estado]
               }}>{detalle.estado}</span>
               <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                <button className="btn-ghost" title="Archivar actividad"
+                <button className="btn-ghost" title="Archivar tarea"
                   style={{ color: "#dc2626", fontSize: "1rem" }}
                   onClick={async () => {
-                    if (!confirm("¿Archivar esta actividad? Desaparecerá del tablero y la solicitud quedará libre para reasignar.")) return;
+                    if (!confirm("¿Archivar esta tarea? Desaparecerá del tablero.")) return;
                     try {
-                      await api.archivarActividad(detalle.id);
+                      await api.archivarTarea(detalle.id);
                       setDetalle(null);
                       await reload();
                     } catch (err) { alert(err.message); }
@@ -282,36 +282,28 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
 
             {tabDetalle === "info" && (
               <>
-                {/* Solicitud */}
-                <div style={{ background: "#f8fafc", borderRadius: 8, padding: "0.75rem 1rem", marginBottom: "0.75rem" }}>
-                  <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, marginBottom: "0.5rem" }}>SOLICITUD ASOCIADA</div>
-                  <DetalleRow label="Descripción"  value={detalle.solicitud.descripcion} />
-                  <DetalleRow label="Prioridad" value={
-                    <span className="prioridad-tag"
-                      style={{ background: PRIORIDAD_BG[detalle.solicitud.prioridad], color: PRIORIDAD_COLOR[detalle.solicitud.prioridad] }}>
-                      {detalle.solicitud.prioridad}
-                    </span>
-                  } />
-                  <DetalleRow label="Fecha/Hora"
-                    value={detalle.solicitud.fecha_hora
-                      ? new Date(detalle.solicitud.fecha_hora).toLocaleString("es-VE")
-                      : "—"} />
-                  <DetalleRow label="Ubicación"    value={detalle.solicitud.ubicacion || "—"} />
-                  <DetalleRow label="Solicitante"  value={detalle.solicitud.solicitante_nombre || "—"} />
-                  <DetalleRow label="Teléfono"     value={detalle.solicitud.solicitante_telefono || "—"} />
-                  <DetalleRow label="Correo"       value={detalle.solicitud.solicitante_email || "—"} />
-                  {detalle.solicitud.lat && (
-                    <div style={{ marginTop: "0.6rem" }}>
-                      <MapaReadOnly lat={detalle.solicitud.lat} lng={detalle.solicitud.lng} />
-                    </div>
-                  )}
-                </div>
+                <DetalleRow label="Descripción"  value={detalle.descripcion} />
+                <DetalleRow label="Prioridad" value={
+                  <span className="prioridad-tag"
+                    style={{ background: PRIORIDAD_BG[detalle.prioridad], color: PRIORIDAD_COLOR[detalle.prioridad] }}>
+                    {detalle.prioridad}
+                  </span>
+                } />
+                <DetalleRow label="Fecha/Hora"
+                  value={detalle.fecha_hora
+                    ? new Date(detalle.fecha_hora).toLocaleString("es-VE")
+                    : null} />
+                <DetalleRow label="Ubicación"    value={detalle.ubicacion} />
+                {detalle.lat && (
+                  <div style={{ marginTop: "0.6rem" }}>
+                    <MapaReadOnly lat={detalle.lat} lng={detalle.lng} />
+                  </div>
+                )}
 
-                {/* Actividad */}
-                <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, marginBottom: "0.4rem" }}>ACTIVIDAD</div>
+                <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, margin: "0.9rem 0 0.4rem" }}>ASIGNACIÓN</div>
                 <DetalleRow label="Grupo"        value={detalle.grupo.nombre} />
-                <DetalleRow label="Asignado"     value={new Date(detalle.fecha_asignacion).toLocaleString("es-VE")} />
-                <DetalleRow label="Actualizado"  value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
+                <DetalleRow label="Asignada"     value={new Date(detalle.fecha_asignacion).toLocaleString("es-VE")} />
+                <DetalleRow label="Actualizada"  value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
 
                 <div style={{ marginTop: "0.75rem" }}>
                   <span className="detalle-label">Trabajando en esto:</span>
@@ -345,31 +337,31 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
             )}
 
             {tabDetalle === "comentarios" && (
-              <SeccionComentarios actividadId={detalle.id} />
+              <SeccionComentarios tareaId={detalle.id} />
             )}
           </div>
         </div>
       )}
 
-      {/* ── Modal nueva actividad rápida ── */}
-      {modalRapida && (
-        <div className="overlay" onClick={() => setModalRapida(null)}>
+      {/* ── Modal nueva tarea ── */}
+      {modalNueva && (
+        <div className="overlay" onClick={() => setModalNueva(null)}>
           <div className="modal modal-detalle" onClick={e => e.stopPropagation()}>
             <div className="detalle-header">
-              <h3 style={{ color: "var(--navy)", margin: 0 }}>Nueva Actividad</h3>
-              <button className="btn-ghost" onClick={() => setModalRapida(null)}>✕</button>
+              <h3 style={{ color: "var(--navy)", margin: 0 }}>Nueva Tarea</h3>
+              <button className="btn-ghost" onClick={() => setModalNueva(null)}>✕</button>
             </div>
-            <form onSubmit={submitRapida} className="form" style={{ marginTop: "0.75rem" }}>
+            <form onSubmit={submitNueva} className="form" style={{ marginTop: "0.75rem" }}>
               <label>Descripción *
-                <textarea required rows={3} value={modalRapida.descripcion}
-                  onChange={e => setModalRapida(p => ({ ...p, descripcion: e.target.value }))}
+                <textarea required rows={3} value={modalNueva.descripcion}
+                  onChange={e => setModalNueva(p => ({ ...p, descripcion: e.target.value }))}
                   placeholder="¿Qué hay que hacer?" />
               </label>
 
               {isPrivileged && (
                 <label>Grupo de Trabajo *
-                  <select required value={modalRapida.grupo_id}
-                    onChange={e => setModalRapida(p => ({ ...p, grupo_id: e.target.value }))}>
+                  <select required value={modalNueva.grupo_id}
+                    onChange={e => setModalNueva(p => ({ ...p, grupo_id: e.target.value }))}>
                     <option value="">— Seleccionar grupo —</option>
                     {gruposAll.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
                   </select>
@@ -380,13 +372,13 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
                 <div className="prioridad-group">
                   {["Baja", "Normal", "Alta"].map(p => (
                     <button key={p} type="button"
-                      className={`prioridad-btn ${modalRapida.prioridad === p ? "prioridad-active" : ""}`}
-                      style={modalRapida.prioridad === p ? {
+                      className={`prioridad-btn ${modalNueva.prioridad === p ? "prioridad-active" : ""}`}
+                      style={modalNueva.prioridad === p ? {
                         background: p === "Alta" ? "#fee2e2" : p === "Normal" ? "#fef3c7" : "#f3f4f6",
                         color: p === "Alta" ? "#dc2626" : p === "Normal" ? "#d97706" : "#6b7280",
                         borderColor: p === "Alta" ? "#dc2626" : p === "Normal" ? "#d97706" : "#6b7280",
                       } : {}}
-                      onClick={() => setModalRapida(pr => ({ ...pr, prioridad: p }))}>
+                      onClick={() => setModalNueva(pr => ({ ...pr, prioridad: p }))}>
                       {p}
                     </button>
                   ))}
@@ -396,34 +388,34 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
               <label>Ubicación — haz clic en el mapa o busca una dirección
                 <Suspense fallback={<div className="mapa-loading">Cargando mapa...</div>}>
                   <MapaPicker
-                    value={{ lat: modalRapida.lat, lng: modalRapida.lng, address: modalRapida.ubicacion }}
-                    onChange={({ lat, lng, address }) => setModalRapida(p => ({ ...p, lat, lng, ubicacion: address }))}
+                    value={{ lat: modalNueva.lat, lng: modalNueva.lng, address: modalNueva.ubicacion }}
+                    onChange={({ lat, lng, address }) => setModalNueva(p => ({ ...p, lat, lng, ubicacion: address }))}
                   />
                 </Suspense>
               </label>
 
               <label>Fecha y hora estimada
-                <input type="datetime-local" value={modalRapida.fecha_hora}
-                  onChange={e => setModalRapida(p => ({ ...p, fecha_hora: e.target.value }))} />
+                <input type="datetime-local" value={modalNueva.fecha_hora}
+                  onChange={e => setModalNueva(p => ({ ...p, fecha_hora: e.target.value }))} />
               </label>
 
               <div className="modal-actions">
                 <button type="submit" className="btn-primary" disabled={creando}>
-                  {creando ? "Creando..." : "Crear Actividad"}
+                  {creando ? "Creando..." : "Crear Tarea"}
                 </button>
-                <button type="button" className="btn-ghost" onClick={() => setModalRapida(null)}>Cancelar</button>
+                <button type="button" className="btn-ghost" onClick={() => setModalNueva(null)}>Cancelar</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ── Modal asignación de miembros (solo grupos) ── */}
+      {/* ── Modal asignación de miembros ── */}
       {modalMiembros && (
         <div className="overlay" onClick={() => setModalMiembros(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>¿Quiénes trabajan en esto?</h3>
-            <p className="modal-desc">{modalMiembros.solicitud.descripcion}</p>
+            <p className="modal-desc">{modalMiembros.descripcion}</p>
 
             <div className="popover-list" style={{ maxHeight: 320, overflowY: "auto", margin: "0.75rem 0" }}>
               {miembros.length === 0
@@ -477,7 +469,7 @@ export default function ModuloActividades({ refresh, abrirActividadId, onActivid
   );
 }
 
-function SeccionComentarios({ actividadId }) {
+function SeccionComentarios({ tareaId }) {
   const { user } = useAuth();
   const [comentarios, setComentarios] = useState([]);
   const [texto, setTexto]             = useState("");
@@ -486,12 +478,12 @@ function SeccionComentarios({ actividadId }) {
 
   const reload = async () => {
     try {
-      const data = await api.getComentarios(actividadId);
+      const data = await api.getComentariosTarea(tareaId);
       setComentarios(data);
     } catch {}
   };
 
-  useEffect(() => { reload(); }, [actividadId]);
+  useEffect(() => { reload(); }, [tareaId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -502,7 +494,7 @@ function SeccionComentarios({ actividadId }) {
     if (!texto.trim()) return;
     setEnviando(true);
     try {
-      await api.crearComentario(actividadId, texto.trim());
+      await api.crearComentarioTarea(tareaId, texto.trim());
       setTexto("");
       await reload();
     } finally {

@@ -70,19 +70,29 @@ CREATE TABLE IF NOT EXISTS usuarios (
 
 -- Solicitudes
 CREATE TABLE IF NOT EXISTS solicitudes (
-    id                   SERIAL PRIMARY KEY,
-    descripcion          TEXT NOT NULL,
-    creado_por_grupo_id  INT,
-    creado_por_centro_id INT,
-    solicitante_id       INT,
-    ubicacion            VARCHAR(500),
-    fecha_hora           TIMESTAMPTZ,
-    prioridad            VARCHAR(20) DEFAULT 'Normal',
-    lat                  DOUBLE PRECISION,
-    lng                  DOUBLE PRECISION,
-    fecha_creacion       TIMESTAMPTZ DEFAULT NOW(),
-    fecha_actualizacion  TIMESTAMPTZ,
-    CONSTRAINT ck_sol_prioridad CHECK (prioridad IN ('Baja', 'Normal', 'Alta'))
+    id                     SERIAL PRIMARY KEY,
+    descripcion            TEXT NOT NULL,
+    creado_por_grupo_id    INT,
+    creado_por_centro_id   INT,
+    solicitante_id         INT,
+    ubicacion              VARCHAR(500),
+    fecha_hora             TIMESTAMPTZ,
+    prioridad              VARCHAR(20) DEFAULT 'Normal',
+    lat                    DOUBLE PRECISION,
+    lng                    DOUBLE PRECISION,
+    fecha_creacion         TIMESTAMPTZ DEFAULT NOW(),
+    fecha_actualizacion    TIMESTAMPTZ,
+    -- Flujo de aprobación (Tareas y Solicitudes desacopladas, ver plan-tareas-solicitudes.md)
+    estado                 VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
+    receptor_nombre        VARCHAR(200),
+    receptor_telefono      VARCHAR(50),
+    reclamado_por_grupo_id INT,
+    reclamado_en           TIMESTAMPTZ,
+    aprobado_por_username  VARCHAR(100),
+    aprobado_en            TIMESTAMPTZ,
+    rechazo_motivo         TEXT,
+    CONSTRAINT ck_sol_prioridad CHECK (prioridad IN ('Baja', 'Normal', 'Alta')),
+    CONSTRAINT ck_sol_estado CHECK (estado IN ('Pendiente', 'Aprobada', 'Rechazada', 'Resuelta'))
 );
 
 -- Catálogo de insumos
@@ -102,36 +112,66 @@ CREATE TABLE IF NOT EXISTS insumos (
 
 -- Items de solicitudes
 CREATE TABLE IF NOT EXISTS solicitud_items (
-    id           SERIAL PRIMARY KEY,
-    solicitud_id INT NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
-    insumo_id    INT REFERENCES insumos(id),
-    nombre       VARCHAR(200) NOT NULL,
-    cantidad     INT NOT NULL DEFAULT 1
+    id                SERIAL PRIMARY KEY,
+    solicitud_id      INT NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+    insumo_id         INT REFERENCES insumos(id),
+    nombre            VARCHAR(200) NOT NULL,
+    cantidad          INT NOT NULL DEFAULT 1,
+    cantidad_flexible BOOLEAN DEFAULT FALSE  -- TRUE = "cualquier cantidad", sin objetivo exacto
 );
 
--- Actividades (Kanban)
-CREATE TABLE IF NOT EXISTS actividades (
+-- Aportes de grupos a items de solicitudes aprobadas (permite resolución parcial)
+CREATE TABLE IF NOT EXISTS solicitud_item_aportes (
+    id             SERIAL PRIMARY KEY,
+    item_id        INT NOT NULL REFERENCES solicitud_items(id) ON DELETE CASCADE,
+    grupo_id       INT NOT NULL REFERENCES grupos_trabajo(id),
+    cantidad       INT NOT NULL,
+    comentario     TEXT,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Log de trazabilidad de solicitudes (creada/aprobada/rechazada/reenviada/reclamada/liberada/resuelta)
+CREATE TABLE IF NOT EXISTS solicitud_log (
+    id             SERIAL PRIMARY KEY,
+    solicitud_id   INT NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+    evento         VARCHAR(50) NOT NULL,
+    usuario        VARCHAR(100),
+    rol            VARCHAR(50),
+    detalle        TEXT,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tareas (Kanban de trabajo interno, desacopladas de Solicitudes)
+CREATE TABLE IF NOT EXISTS tareas (
     id                  SERIAL PRIMARY KEY,
-    solicitud_id        INT NOT NULL REFERENCES solicitudes(id),
+    descripcion         TEXT NOT NULL,
     grupo_id            INT NOT NULL REFERENCES grupos_trabajo(id),
+    creado_por_rol      VARCHAR(50),
+    creado_por_username VARCHAR(100),
+    ubicacion           VARCHAR(500),
+    fecha_hora          TIMESTAMPTZ,
+    prioridad           VARCHAR(20) DEFAULT 'Normal',
+    lat                 DOUBLE PRECISION,
+    lng                 DOUBLE PRECISION,
     estado              VARCHAR(50) NOT NULL DEFAULT 'Por ejecutar',
     archivada           BOOLEAN DEFAULT FALSE,
+    solicitud_origen_id INT,  -- referencia histórica, sin FK viva (ver migración)
     fecha_asignacion    TIMESTAMPTZ DEFAULT NOW(),
     fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT ck_act_estado CHECK (estado IN ('Por ejecutar', 'En ejecución', 'Ejecutado'))
+    CONSTRAINT ck_tarea_estado CHECK (estado IN ('Por ejecutar', 'En ejecución', 'Ejecutado'))
 );
 
--- Miembros asignados a actividades
-CREATE TABLE IF NOT EXISTS actividad_miembros (
-    actividad_id INT NOT NULL REFERENCES actividades(id) ON DELETE CASCADE,
-    miembro_id   INT NOT NULL REFERENCES miembros(id) ON DELETE CASCADE,
-    PRIMARY KEY (actividad_id, miembro_id)
+-- Miembros asignados a tareas
+CREATE TABLE IF NOT EXISTS tarea_miembros (
+    tarea_id   INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+    miembro_id INT NOT NULL REFERENCES miembros(id) ON DELETE CASCADE,
+    PRIMARY KEY (tarea_id, miembro_id)
 );
 
--- Comentarios
-CREATE TABLE IF NOT EXISTS actividad_comentarios (
+-- Comentarios de tareas
+CREATE TABLE IF NOT EXISTS tarea_comentarios (
     id              SERIAL PRIMARY KEY,
-    actividad_id    INT NOT NULL REFERENCES actividades(id) ON DELETE CASCADE,
+    tarea_id        INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
     autor_username  VARCHAR(100),
     autor_rol       VARCHAR(50),
     grupo_id        INT,
@@ -166,7 +206,8 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     id             SERIAL PRIMARY KEY,
     para_rol       VARCHAR(50) NOT NULL,
     para_grupo_id  INT,
-    actividad_id   INT REFERENCES actividades(id) ON DELETE CASCADE,
+    tarea_id       INT REFERENCES tareas(id) ON DELETE CASCADE,
+    solicitud_id   INT REFERENCES solicitudes(id) ON DELETE CASCADE,
     comentario_id  INT,
     texto          VARCHAR(500) NOT NULL,
     leida          BOOLEAN DEFAULT FALSE,

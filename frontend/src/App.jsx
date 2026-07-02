@@ -3,7 +3,7 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./components/Login";
 import ModuloMiembrosGrupos from "./components/ModuloMiembrosGrupos";
 import ModuloSolicitudes from "./components/ModuloSolicitudes";
-import ModuloActividades from "./components/ModuloActividades";
+import ModuloTareas from "./components/ModuloTareas";
 import ModuloCentros from "./components/ModuloCentros";
 import VistaCentro from "./components/VistaCentro";
 import PanelNotificaciones from "./components/PanelNotificaciones";
@@ -16,21 +16,21 @@ const TABS_ADMIN = [
   { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "centros",    label: "🏥 Centros" },
   { id: "solicitudes",label: "📥 Solicitudes" },
-  { id: "actividades",label: "📊 Actividades" },
+  { id: "tareas",     label: "📊 Tareas" },
 ];
 const TABS_GRUPO = [
   { id: "miembros",   label: "👤 Mi Grupo" },
   { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "solicitudes",label: "📥 Mis Solicitudes" },
-  { id: "actividades",label: "📊 Mis Actividades" },
+  { id: "tareas",     label: "📊 Mis Tareas" },
 ];
 
 export default function App() {
   const { user, logout } = useAuth();
   const [tab, setTab] = useState("solicitudes");
   const [actRefresh, setActRefresh] = useState(0);
-  // actividad a abrir directamente desde notificación
-  const [abrirActividadId, setAbrirActividadId] = useState(null);
+  // tarea a abrir directamente desde notificación
+  const [abrirTareaId, setAbrirTareaId] = useState(null);
 
   if (!user) return <Login />;
   if (user.rol === "centro") return <VistaCentro />;
@@ -47,13 +47,15 @@ export default function App() {
     logout();
   };
 
-  const irAActividad = (actividadId) => {
-    if (!actividadId) {
+  const irANotificacion = (notif) => {
+    if (notif?.tarea_id) {
+      setTab("tareas");
+      setAbrirTareaId(notif.tarea_id);
+    } else if (notif?.solicitud_id) {
+      setTab("solicitudes");
+    } else {
       setTab("publicaciones");
-      return;
     }
-    setTab("actividades");
-    setAbrirActividadId(actividadId);
   };
 
   return (
@@ -68,7 +70,7 @@ export default function App() {
             </div>
           </div>
           <div className="header-user">
-            <PanelNotificaciones onAbrirActividad={irAActividad} />
+            <PanelNotificaciones onNotifClick={irANotificacion} />
             <span className={`role-badge ${isAdmin ? "role-admin" : user.es_coordinador ? "role-admin" : "role-grupo"}`}>
               {isAdmin ? "🔑 Admin" : user.es_coordinador ? "📡 Coordinador" : "🏷️ " + user.grupo_nombre}
             </span>
@@ -90,11 +92,11 @@ export default function App() {
         {tab === "publicaciones" && <ModuloPublicaciones />}
         {tab === "centros"     && <ModuloCentros />}
         {tab === "solicitudes" && <ModuloSolicitudes onDataChange={notifyChange} />}
-        {tab === "actividades" && (
-          <ModuloActividades
+        {tab === "tareas" && (
+          <ModuloTareas
             refresh={actRefresh}
-            abrirActividadId={abrirActividadId}
-            onActividadAbierta={() => setAbrirActividadId(null)}
+            abrirTareaId={abrirTareaId}
+            onTareaAbierta={() => setAbrirTareaId(null)}
           />
         )}
       </main>

@@ -8,6 +8,10 @@ const PRIORIDADES = ["Baja", "Normal", "Alta"];
 const PRIORIDAD_COLOR = { Alta: "#dc2626", Normal: "#d97706", Baja: "#6b7280" };
 const PRIORIDAD_BG    = { Alta: "#fee2e2", Normal: "#fef3c7", Baja: "#f3f4f6" };
 
+const ESTADOS = ["Pendiente", "Aprobada", "Rechazada", "Resuelta"];
+const ESTADO_COLOR = { Pendiente: "#d97706", Aprobada: "#16a34a", Rechazada: "#dc2626", Resuelta: "#2563eb" };
+const ESTADO_BG    = { Pendiente: "#fef3c7", Aprobada: "#dcfce7", Rechazada: "#fee2e2", Resuelta: "#dbeafe" };
+
 function nowLocal() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -17,6 +21,7 @@ function nowLocal() {
 const FORM_VACIO = () => ({
   descripcion: "", solicitante_id: "", prioridad: "Normal",
   ubicacion: "", lat: null, lng: null, fecha_hora: nowLocal(),
+  receptor_nombre: "", receptor_telefono: "",
   items: [],
 });
 
@@ -25,30 +30,24 @@ export default function ModuloSolicitudes({ onDataChange }) {
   const isAdmin = user.rol === "admin";
   const isPrivileged = isAdmin || user.es_coordinador;
 
-  const [pendientes,     setPendientes]     = useState([]);
-  const [misSolicitudes, setMisSolicitudes] = useState([]);
-  const [grupos,         setGrupos]         = useState([]);
+  const [lista,          setLista]          = useState([]);
+  const [estadoFiltro,   setEstadoFiltro]   = useState("Pendiente");
   const [miembros,       setMiembros]       = useState([]);
-  const [modal,          setModal]          = useState(null);
-  const [grupoSel,       setGrupoSel]       = useState("");
   const [form,           setForm]           = useState(FORM_VACIO);
   const [showForm,       setShowForm]       = useState(false);
   const [msg,            setMsg]            = useState(null);
-  const [autoasignando,  setAutoasignando]  = useState({});
+  const [procesando,     setProcesando]     = useState({});
   const [detalle,        setDetalle]        = useState(null);
   const [editando,       setEditando]       = useState(null);
+  const [modalRechazo,   setModalRechazo]   = useState(null);
+  const [motivoRechazo,  setMotivoRechazo]  = useState("");
 
   const reload = async () => {
     const [ms] = await Promise.all([api.getMiembros()]);
     setMiembros(ms);
-    if (isPrivileged) {
-      const [p, g] = await Promise.all([api.getSolicitudesPendientes(), api.getGrupos()]);
-      setPendientes(p); setGrupos(g);
-    } else {
-      setMisSolicitudes(await api.getSolicitudes());
-    }
+    setLista(await api.getSolicitudes(isPrivileged ? (estadoFiltro === "Todas" ? null : estadoFiltro) : null));
   };
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, [estadoFiltro]);
 
   const flash = (text, ok = true) => { setMsg({ text, ok }); setTimeout(() => setMsg(null), 3500); };
   const f = (campo, valor) => setForm(p => ({ ...p, [campo]: valor }));
@@ -66,6 +65,13 @@ export default function ModuloSolicitudes({ onDataChange }) {
     } catch (err) { flash(err.message, false); }
   };
 
+  const puedeEditar = (s) =>
+    (s.estado === "Pendiente" || s.estado === "Rechazada") &&
+    (isAdmin || (s.origen.tipo === "grupo" && s.origen.id === user.grupo_id));
+
+  const puedeEliminar = (s) =>
+    isPrivileged || (s.estado === "Pendiente" && s.origen.tipo === "grupo" && s.origen.id === user.grupo_id);
+
   const abrirEditar = (s) => {
     setEditando({
       id: s.id,
@@ -75,8 +81,13 @@ export default function ModuloSolicitudes({ onDataChange }) {
       lat: s.lat || null,
       lng: s.lng || null,
       fecha_hora: s.fecha_hora ? s.fecha_hora.slice(0, 16) : nowLocal(),
-      solicitante_id: s.solicitante_id || "",
-      items: (s.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, insumo_id: i.insumo_id || null })),
+      solicitante_id: s.solicitante?.id || "",
+      receptor_nombre: s.receptor_nombre || "",
+      receptor_telefono: s.receptor_telefono || "",
+      items: (s.items || []).map(i => ({
+        nombre: i.nombre, cantidad: i.cantidad,
+        cantidad_flexible: i.cantidad_flexible, insumo_id: i.insumo_id || null,
+      })),
     });
   };
 
@@ -91,16 +102,6 @@ export default function ModuloSolicitudes({ onDataChange }) {
     } catch (err) { flash(err.message, false); }
   };
 
-  const autoasignar = async (solicitudId) => {
-    setAutoasignando(p => ({ ...p, [solicitudId]: true }));
-    try {
-      await api.crearActividad({ solicitud_id: solicitudId, grupo_id: user.grupo_id });
-      await reload(); onDataChange();
-      flash("Solicitud autoasignada. Ya aparece en tus actividades.");
-    } catch (err) { flash(err.message, false); }
-    finally { setAutoasignando(p => ({ ...p, [solicitudId]: false })); }
-  };
-
   const eliminar = async (s) => {
     if (!confirm(`¿Eliminar la solicitud "${s.descripcion.slice(0, 60)}…"? Esta acción no se puede deshacer.`)) return;
     try {
@@ -110,26 +111,53 @@ export default function ModuloSolicitudes({ onDataChange }) {
     } catch (err) { flash(err.message, false); }
   };
 
-  const asignar = async () => {
-    if (!grupoSel) return flash("Selecciona un grupo.", false);
+  const aprobar = async (s) => {
+    setProcesando(p => ({ ...p, [s.id]: true }));
     try {
-      await api.crearActividad({ solicitud_id: modal.id, grupo_id: Number(grupoSel) });
-      setModal(null); setGrupoSel("");
+      await api.aprobarSolicitud(s.id);
       await reload(); onDataChange();
-      flash("Solicitud asignada y convertida en actividad.");
+      flash("Solicitud aprobada.");
     } catch (err) { flash(err.message, false); }
+    finally { setProcesando(p => ({ ...p, [s.id]: false })); }
   };
 
-  const lista = isPrivileged ? pendientes : misSolicitudes;
+  const submitRechazo = async (e) => {
+    e.preventDefault();
+    if (!motivoRechazo.trim()) return flash("El motivo de rechazo es obligatorio.", false);
+    setProcesando(p => ({ ...p, [modalRechazo.id]: true }));
+    try {
+      await api.rechazarSolicitud(modalRechazo.id, motivoRechazo.trim());
+      setModalRechazo(null); setMotivoRechazo("");
+      await reload(); onDataChange();
+      flash("Solicitud rechazada.");
+    } catch (err) { flash(err.message, false); }
+    finally { setProcesando(p => ({ ...p, [modalRechazo.id]: false })); }
+  };
 
   return (
     <div className="modulo">
       <h2>{isPrivileged ? "📥 Bandeja de Solicitudes" : "📥 Mis Solicitudes"}</h2>
       {msg && <div className={`alert ${msg.ok ? "alert-ok" : "alert-err"}`}>{msg.text}</div>}
 
-      <button className="btn-secondary" onClick={() => showForm ? setShowForm(false) : abrirForm()}>
-        {showForm ? "✕ Cancelar" : "+ Nueva Solicitud"}
-      </button>
+      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.5rem" }}>
+        <button className="btn-secondary" onClick={() => showForm ? setShowForm(false) : abrirForm()}>
+          {showForm ? "✕ Cancelar" : "+ Nueva Solicitud"}
+        </button>
+        {isPrivileged && (
+          <div className="prioridad-group">
+            {["Todas", ...ESTADOS].map(e => (
+              <button key={e} type="button"
+                className={`prioridad-btn ${estadoFiltro === e ? "prioridad-active" : ""}`}
+                style={estadoFiltro === e && e !== "Todas"
+                  ? { background: ESTADO_BG[e], color: ESTADO_COLOR[e], borderColor: ESTADO_COLOR[e] }
+                  : {}}
+                onClick={() => setEstadoFiltro(e)}>
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {showForm && (
         <form onSubmit={submitSolicitud} className="form sol-form" style={{ maxWidth: "100%", marginTop: "1.25rem" }}>
@@ -173,6 +201,20 @@ export default function ModuloSolicitudes({ onDataChange }) {
             </div>
           </div>
 
+          {/* Receptor */}
+          <div className="form-row">
+            <label>Nombre de quien recibe
+              <input value={form.receptor_nombre}
+                onChange={e => f("receptor_nombre", e.target.value)}
+                placeholder="Nombre de la persona que recibirá lo solicitado" />
+            </label>
+            <label>Teléfono de quien recibe
+              <input value={form.receptor_telefono}
+                onChange={e => f("receptor_telefono", e.target.value)}
+                placeholder="04XX-XXXXXXX" />
+            </label>
+          </div>
+
           <TablaItems items={form.items || []}
             onChange={items => setForm(p => ({ ...p, items }))} />
 
@@ -191,11 +233,11 @@ export default function ModuloSolicitudes({ onDataChange }) {
       )}
 
       <h3 style={{ marginTop: "1.5rem" }}>
-        {isPrivileged ? `Pendientes de asignación (${lista.length})` : `Solicitudes enviadas (${lista.length})`}
+        {isPrivileged ? `Solicitudes (${lista.length})` : `Solicitudes enviadas (${lista.length})`}
       </h3>
 
       {lista.length === 0
-        ? <p className="empty">{isPrivileged ? "No hay solicitudes pendientes." : "Tu grupo no ha enviado solicitudes aún."}</p>
+        ? <p className="empty">{isPrivileged ? "No hay solicitudes en este estado." : "Tu grupo no ha enviado solicitudes aún."}</p>
         : (
           <div className="card-list">
             {lista.map(s => (
@@ -206,11 +248,14 @@ export default function ModuloSolicitudes({ onDataChange }) {
                       style={{ background: PRIORIDAD_BG[s.prioridad], color: PRIORIDAD_COLOR[s.prioridad] }}>
                       {s.prioridad}
                     </span>
-                    {s.grupo_origen && <span className="origen-badge">📤 {s.grupo_origen.nombre}</span>}
+                    <span className="prioridad-tag" style={{ background: ESTADO_BG[s.estado], color: ESTADO_COLOR[s.estado] }}>
+                      {s.estado}
+                    </span>
+                    {s.origen && <span className="origen-badge">{s.origen.tipo === "centro" ? "🏥" : "📤"} {s.origen.nombre}</span>}
                   </div>
                   <p className="card-desc">{s.descripcion}</p>
                   <div className="sol-meta">
-                    {s.solicitante_nombre && <span>👤 {s.solicitante_nombre}</span>}
+                    {s.solicitante && <span>👤 {s.solicitante.nombre}</span>}
                     {s.ubicacion && <span>📍 {s.ubicacion.slice(0, 60)}{s.ubicacion.length > 60 ? "…" : ""}</span>}
                     {s.fecha_hora && <span>🕐 {new Date(s.fecha_hora).toLocaleString("es-VE")}</span>}
                     <span className="date">Creada: {new Date(s.fecha_creacion).toLocaleDateString("es-VE")}</span>
@@ -220,48 +265,62 @@ export default function ModuloSolicitudes({ onDataChange }) {
                       </span>
                     )}
                   </div>
+                  {s.estado === "Rechazada" && s.rechazo_motivo && (
+                    <p style={{ fontSize: "0.8rem", color: "#dc2626", marginTop: "0.4rem" }}>
+                      ❌ Motivo: {s.rechazo_motivo}
+                    </p>
+                  )}
+                  {s.reclamado_por && (
+                    <p style={{ fontSize: "0.8rem", color: "#2563eb", marginTop: "0.4rem" }}>
+                      🔒 En proceso — reclamada por {s.reclamado_por.nombre}
+                    </p>
+                  )}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:"0.4rem", alignItems:"flex-end" }}
                      onClick={e => e.stopPropagation()}>
-                  <button className="btn-edit-grupo" title="Editar" onClick={() => abrirEditar(s)}>✏️</button>
-                  {isPrivileged && !s.actividad_estado && (
+                  {puedeEditar(s) && (
+                    <button className="btn-edit-grupo" title="Editar" onClick={() => abrirEditar(s)}>✏️</button>
+                  )}
+                  {puedeEliminar(s) && (
                     <button className="btn-edit-grupo" style={{ background: "#dc2626" }} title="Eliminar"
                       onClick={() => eliminar(s)}>🗑️</button>
                   )}
-                  {s.actividad_estado
-                    ? <span className={`badge-estado badge-${s.actividad_estado.replace(/ /g,"-").toLowerCase()}`}>
-                        {s.actividad_estado}
-                      </span>
-                    : isPrivileged
-                      ? <button className="btn-assign" onClick={() => { setModal(s); setGrupoSel(""); }}>Asignar →</button>
-                      : <button className="btn-assign" disabled={autoasignando[s.id]}
-                          onClick={() => autoasignar(s.id)}>
-                          {autoasignando[s.id] ? "..." : "⚡ Autoasignar"}
-                        </button>
-                  }
+                  {isPrivileged && s.estado === "Pendiente" && (
+                    <>
+                      <button className="btn-assign" disabled={procesando[s.id]} onClick={() => aprobar(s)}>
+                        {procesando[s.id] ? "..." : "✅ Aprobar"}
+                      </button>
+                      <button className="btn-edit-grupo" style={{ background: "#dc2626" }}
+                        onClick={() => { setModalRechazo(s); setMotivoRechazo(""); }}>
+                        ❌ Rechazar
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-      {/* Modal asignación */}
-      {modal && (
-        <div className="overlay" onClick={() => setModal(null)}>
+      {/* Modal rechazo */}
+      {modalRechazo && (
+        <div className="overlay" onClick={() => setModalRechazo(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Asignar al Grupo</h3>
-            <p className="modal-desc">{modal.descripcion}</p>
-            {modal.grupo_origen && <p style={{ fontSize:"0.82rem", color:"#6b7280", marginBottom:"0.75rem" }}>📤 {modal.grupo_origen.nombre}</p>}
-            <label>Grupo de Trabajo
-              <select value={grupoSel} onChange={e => setGrupoSel(e.target.value)}>
-                <option value="">— Seleccionar —</option>
-                {grupos.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-              </select>
-            </label>
-            <div className="modal-actions">
-              <button className="btn-primary" onClick={asignar}>Confirmar</button>
-              <button className="btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
-            </div>
+            <h3>Rechazar Solicitud</h3>
+            <p className="modal-desc">{modalRechazo.descripcion}</p>
+            <form onSubmit={submitRechazo}>
+              <label>Motivo del rechazo *
+                <textarea required rows={3} value={motivoRechazo}
+                  onChange={e => setMotivoRechazo(e.target.value)}
+                  placeholder="Explica por qué se rechaza esta solicitud..." />
+              </label>
+              <div className="modal-actions">
+                <button type="submit" className="btn-primary" disabled={procesando[modalRechazo.id]}>
+                  {procesando[modalRechazo.id] ? "..." : "Confirmar rechazo"}
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setModalRechazo(null)}>Cancelar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -271,10 +330,15 @@ export default function ModuloSolicitudes({ onDataChange }) {
         <div className="overlay" onClick={() => setDetalle(null)}>
           <div className="modal modal-detalle" onClick={e => e.stopPropagation()}>
             <div className="detalle-header">
-              <span className="prioridad-tag"
-                style={{ background: PRIORIDAD_BG[detalle.prioridad], color: PRIORIDAD_COLOR[detalle.prioridad] }}>
-                {detalle.prioridad}
-              </span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <span className="prioridad-tag"
+                  style={{ background: PRIORIDAD_BG[detalle.prioridad], color: PRIORIDAD_COLOR[detalle.prioridad] }}>
+                  {detalle.prioridad}
+                </span>
+                <span className="prioridad-tag" style={{ background: ESTADO_BG[detalle.estado], color: ESTADO_COLOR[detalle.estado] }}>
+                  {detalle.estado}
+                </span>
+              </div>
               <button className="btn-ghost" onClick={() => setDetalle(null)}>✕</button>
             </div>
             <h3 style={{ marginBottom:"1rem" }}>Detalle de Solicitud</h3>
@@ -282,14 +346,24 @@ export default function ModuloSolicitudes({ onDataChange }) {
             <DetalleRow label="Ubicación"    value={detalle.ubicacion} />
             {detalle.lat && <DetalleRow label="Coordenadas" value={`${detalle.lat?.toFixed(5)}, ${detalle.lng?.toFixed(5)}`} />}
             <DetalleRow label="Fecha / Hora" value={detalle.fecha_hora ? new Date(detalle.fecha_hora).toLocaleString("es-VE") : null} />
-            <DetalleRow label="Solicitante"  value={detalle.solicitante_nombre} />
-            <DetalleRow label="Teléfono"     value={detalle.solicitante_telefono} />
-            <DetalleRow label="Correo"       value={detalle.solicitante_email} />
-            <DetalleRow label="Grupo origen" value={detalle.grupo_origen?.nombre} />
-            <DetalleRow label="Estado"       value={detalle.actividad_estado || "Pendiente de asignación"} />
+            <DetalleRow label="Solicitante"  value={detalle.solicitante?.nombre} />
+            <DetalleRow label="Teléfono"     value={detalle.solicitante?.telefono} />
+            <DetalleRow label="Correo"       value={detalle.solicitante?.email} />
+            <DetalleRow label="Origen"       value={detalle.origen?.nombre} />
+            <DetalleRow label="Recibe"       value={detalle.receptor_nombre} />
+            <DetalleRow label="Tel. de quien recibe" value={detalle.receptor_telefono} />
             <DetalleRow label="Registrada"   value={new Date(detalle.fecha_creacion).toLocaleString("es-VE")} />
             {detalle.fecha_actualizacion && (
               <DetalleRow label="Última edición" value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
+            )}
+            {detalle.aprobado_por && (
+              <DetalleRow label="Aprobada por" value={`${detalle.aprobado_por} · ${new Date(detalle.aprobado_en).toLocaleString("es-VE")}`} />
+            )}
+            {detalle.estado === "Rechazada" && (
+              <DetalleRow label="Motivo de rechazo" value={detalle.rechazo_motivo} />
+            )}
+            {detalle.reclamado_por && (
+              <DetalleRow label="En proceso por" value={`${detalle.reclamado_por.nombre} · ${new Date(detalle.reclamado_en).toLocaleString("es-VE")}`} />
             )}
             {detalle.items && detalle.items.length > 0 && (
               <div style={{ marginTop: "0.75rem" }}>
@@ -298,14 +372,18 @@ export default function ModuloSolicitudes({ onDataChange }) {
                   <thead>
                     <tr style={{ background: "#f3f4f6" }}>
                       <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre</th>
-                      <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 90 }}>Cantidad</th>
+                      <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 130 }}>Cantidad</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detalle.items.map((item, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    {detalle.items.map((item) => (
+                      <tr key={item.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
                         <td style={{ padding: "6px 10px" }}>{item.nombre}</td>
-                        <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>{item.cantidad}</td>
+                        <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>
+                          {item.cantidad_flexible
+                            ? `cualquier cantidad (${item.cantidad_resuelta} aportado)`
+                            : `${item.cantidad_resuelta} / ${item.cantidad}`}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -364,6 +442,16 @@ export default function ModuloSolicitudes({ onDataChange }) {
                   </label>
                 </div>
               </div>
+              <div className="form-row">
+                <label>Nombre de quien recibe
+                  <input value={editando.receptor_nombre}
+                    onChange={e => setEditando(p => ({ ...p, receptor_nombre: e.target.value }))} />
+                </label>
+                <label>Teléfono de quien recibe
+                  <input value={editando.receptor_telefono}
+                    onChange={e => setEditando(p => ({ ...p, receptor_telefono: e.target.value }))} />
+                </label>
+              </div>
               <TablaItems items={editando.items || []}
                 onChange={items => setEditando(p => ({ ...p, items }))} />
               <label>Ubicación — haz clic en el mapa o busca una dirección
@@ -398,7 +486,7 @@ function DetalleRow({ label, value }) {
 }
 
 function TablaItems({ items, onChange }) {
-  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, insumo_id: null }]);
+  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, cantidad_flexible: false, insumo_id: null }]);
   const actualizar = (i, campo, valor) =>
     onChange(items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it));
   const eliminar = (i) => onChange(items.filter((_, idx) => idx !== i));
@@ -418,6 +506,7 @@ function TablaItems({ items, onChange }) {
               <tr style={{ background: "#f3f4f6" }}>
                 <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre del ítem</th>
                 <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 100 }}>Cantidad</th>
+                <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 110 }}>Cualquier cantidad</th>
                 <th style={{ width: 36 }}></th>
               </tr>
             </thead>
@@ -434,11 +523,17 @@ function TablaItems({ items, onChange }) {
                       }} />
                   </td>
                   <td style={{ padding: "4px 6px" }}>
-                    <input type="number" min={0} value={item.cantidad}
+                    <input type="number" min={0} disabled={item.cantidad_flexible}
+                      value={item.cantidad_flexible ? "" : item.cantidad}
                       onChange={e => actualizar(i, "cantidad", e.target.value === "" ? "" : parseInt(e.target.value) || 1)}
                       onBlur={e => { if (!e.target.value || parseInt(e.target.value) < 1) actualizar(i, "cantidad", 1); }}
                       onFocus={e => e.target.select()}
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center" }} />
+                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center",
+                        background: item.cantidad_flexible ? "#f3f4f6" : "#fff" }} />
+                  </td>
+                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                    <input type="checkbox" checked={!!item.cantidad_flexible}
+                      onChange={e => actualizar(i, "cantidad_flexible", e.target.checked)} />
                   </td>
                   <td style={{ padding: "4px 6px", textAlign: "center" }}>
                     <button type="button" onClick={() => eliminar(i)}

@@ -158,13 +158,13 @@ def eliminar_miembro(miembro_id):
             conn.close()
             return jsonify({"error": "Acceso denegado"}), 403
 
-    # Verificar que no tenga actividades asignadas
+    # Verificar que no tenga tareas asignadas
     cur.execute(f"""
-        SELECT COUNT(*) FROM actividad_miembros WHERE miembro_id = %s
+        SELECT COUNT(*) FROM tarea_miembros WHERE miembro_id = %s
     """, (miembro_id,))
     if cur.fetchone()[0] > 0:
         conn.close()
-        return jsonify({"error": "Este miembro tiene actividades asignadas y no puede eliminarse."}), 409
+        return jsonify({"error": "Este miembro tiene tareas asignadas y no puede eliminarse."}), 409
 
     cur.execute(f"DELETE FROM miembros_grupos WHERE miembro_id = %s", (miembro_id,))
     cur.execute(f"DELETE FROM miembros WHERE id = %s", (miembro_id,))
