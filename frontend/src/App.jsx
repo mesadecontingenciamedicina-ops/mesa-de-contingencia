@@ -3,6 +3,7 @@ import { useAuth } from "./context/AuthContext";
 import Login from "./components/Login";
 import ModuloMiembrosGrupos from "./components/ModuloMiembrosGrupos";
 import ModuloSolicitudes from "./components/ModuloSolicitudes";
+import ModuloSolicitudesAprobadas from "./components/ModuloSolicitudesAprobadas";
 import ModuloTareas from "./components/ModuloTareas";
 import ModuloCentros from "./components/ModuloCentros";
 import VistaCentro from "./components/VistaCentro";
@@ -16,12 +17,14 @@ const TABS_ADMIN = [
   { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "centros",    label: "🏥 Centros" },
   { id: "solicitudes",label: "📥 Solicitudes" },
+  { id: "aprobadas",  label: "📦 Solicitudes Aprobadas" },
   { id: "tareas",     label: "📊 Tareas" },
 ];
 const TABS_GRUPO = [
   { id: "miembros",   label: "👤 Mi Grupo" },
   { id: "publicaciones", label: "📢 Publicaciones" },
   { id: "solicitudes",label: "📥 Mis Solicitudes" },
+  { id: "aprobadas",  label: "📦 Solicitudes Aprobadas" },
   { id: "tareas",     label: "📊 Mis Tareas" },
 ];
 
@@ -92,6 +95,7 @@ export default function App() {
         {tab === "publicaciones" && <ModuloPublicaciones />}
         {tab === "centros"     && <ModuloCentros />}
         {tab === "solicitudes" && <ModuloSolicitudes onDataChange={notifyChange} />}
+        {tab === "aprobadas"   && <ModuloSolicitudesAprobadas />}
         {tab === "tareas" && (
           <ModuloTareas
             refresh={actRefresh}

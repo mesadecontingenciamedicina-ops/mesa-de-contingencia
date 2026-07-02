@@ -26,6 +26,7 @@ const FORM_VACIO = (user) => ({
   lat: user?.centro_lat || null,
   lng: user?.centro_lng || null,
   fecha_hora: nowLocal(),
+  receptor_nombre: "", receptor_telefono: "",
   items: [],
 });
 
@@ -86,7 +87,11 @@ export default function VistaCentro() {
       ubicacion: s.ubicacion || "",
       lat: s.lat || null, lng: s.lng || null,
       fecha_hora: s.fecha_hora ? s.fecha_hora.slice(0, 16) : nowLocal(),
-      items: (s.items || []).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, insumo_id: i.insumo_id || null })),
+      receptor_nombre: s.receptor_nombre || "", receptor_telefono: s.receptor_telefono || "",
+      items: (s.items || []).map(i => ({
+        nombre: i.nombre, cantidad: i.cantidad,
+        cantidad_flexible: i.cantidad_flexible, insumo_id: i.insumo_id || null,
+      })),
     });
     setDetalle(null);
   };
@@ -166,6 +171,17 @@ export default function VistaCentro() {
               <label>Fecha y hora del evento
                 <input type="datetime-local" value={form.fecha_hora}
                   onChange={e => f("fecha_hora", e.target.value)} />
+              </label>
+
+              <label>Nombre de quien recibe
+                <input value={form.receptor_nombre}
+                  onChange={e => f("receptor_nombre", e.target.value)}
+                  placeholder="Nombre de la persona que recibirá lo solicitado" />
+              </label>
+              <label>Teléfono de quien recibe
+                <input value={form.receptor_telefono}
+                  onChange={e => f("receptor_telefono", e.target.value)}
+                  placeholder="04XX-XXXXXXX" />
               </label>
 
               {form.ubicacion && (
@@ -254,6 +270,8 @@ export default function VistaCentro() {
               <DetalleRow label="Descripción" value={detalle.descripcion} />
               <DetalleRow label="Ubicación" value={detalle.ubicacion} />
               <DetalleRow label="Fecha / Hora" value={detalle.fecha_hora ? new Date(detalle.fecha_hora).toLocaleString("es-VE") : null} />
+              <DetalleRow label="Recibe" value={detalle.receptor_nombre} />
+              <DetalleRow label="Tel. de quien recibe" value={detalle.receptor_telefono} />
               <DetalleRow label="Registrada" value={new Date(detalle.fecha_creacion).toLocaleString("es-VE")} />
               {detalle.fecha_actualizacion && (
                 <DetalleRow label="Última edición" value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
@@ -265,14 +283,20 @@ export default function VistaCentro() {
                     <thead>
                       <tr style={{ background: "#f3f4f6" }}>
                         <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre</th>
-                        <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 90 }}>Cantidad</th>
+                        <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 130 }}>Cantidad</th>
                       </tr>
                     </thead>
                     <tbody>
                       {detalle.items.map((item, i) => (
                         <tr key={i} style={{ borderBottom: "1px solid #e5e7eb" }}>
                           <td style={{ padding: "6px 10px" }}>{item.nombre}</td>
-                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>{item.cantidad}</td>
+                          <td style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700 }}>
+                            {item.cantidad_flexible
+                              ? `cualquier cantidad${item.cantidad_resuelta ? ` (${item.cantidad_resuelta} aportado)` : ""}`
+                              : detalle.estado === "Pendiente"
+                                ? item.cantidad
+                                : `${item.cantidad_resuelta ?? 0} / ${item.cantidad}`}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -326,6 +350,15 @@ export default function VistaCentro() {
                 <label>Fecha y hora del evento
                   <input type="datetime-local" value={editando.fecha_hora}
                     onChange={e => setEditando(p => ({ ...p, fecha_hora: e.target.value }))} />
+                </label>
+
+                <label>Nombre de quien recibe
+                  <input value={editando.receptor_nombre}
+                    onChange={e => setEditando(p => ({ ...p, receptor_nombre: e.target.value }))} />
+                </label>
+                <label>Teléfono de quien recibe
+                  <input value={editando.receptor_telefono}
+                    onChange={e => setEditando(p => ({ ...p, receptor_telefono: e.target.value }))} />
                 </label>
 
                 {editando.ubicacion && (
@@ -395,7 +428,7 @@ export default function VistaCentro() {
 }
 
 function TablaItems({ items, onChange }) {
-  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, insumo_id: null }]);
+  const agregar = () => onChange([...items, { nombre: "", cantidad: 1, cantidad_flexible: false, insumo_id: null }]);
   const actualizar = (i, campo, valor) =>
     onChange(items.map((it, idx) => idx === i ? { ...it, [campo]: valor } : it));
   const eliminar = (i) => onChange(items.filter((_, idx) => idx !== i));
@@ -415,6 +448,7 @@ function TablaItems({ items, onChange }) {
               <tr style={{ background: "#f3f4f6" }}>
                 <th style={{ textAlign: "left", padding: "6px 10px", fontWeight: 700 }}>Nombre del ítem</th>
                 <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 100 }}>Cantidad</th>
+                <th style={{ textAlign: "center", padding: "6px 10px", fontWeight: 700, width: 110 }}>Cualquier cantidad</th>
                 <th style={{ width: 36 }}></th>
               </tr>
             </thead>
@@ -431,11 +465,17 @@ function TablaItems({ items, onChange }) {
                       }} />
                   </td>
                   <td style={{ padding: "4px 6px" }}>
-                    <input type="number" min={0} value={item.cantidad}
+                    <input type="number" min={0} disabled={item.cantidad_flexible}
+                      value={item.cantidad_flexible ? "" : item.cantidad}
                       onChange={e => actualizar(i, "cantidad", e.target.value === "" ? "" : parseInt(e.target.value) || 1)}
                       onBlur={e => { if (!e.target.value || parseInt(e.target.value) < 1) actualizar(i, "cantidad", 1); }}
                       onFocus={e => e.target.select()}
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center" }} />
+                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: 4, padding: "4px 8px", fontSize: "0.85rem", textAlign: "center",
+                        background: item.cantidad_flexible ? "#f3f4f6" : "#fff" }} />
+                  </td>
+                  <td style={{ padding: "4px 6px", textAlign: "center" }}>
+                    <input type="checkbox" checked={!!item.cantidad_flexible}
+                      onChange={e => actualizar(i, "cantidad_flexible", e.target.checked)} />
                   </td>
                   <td style={{ padding: "4px 6px", textAlign: "center" }}>
                     <button type="button" onClick={() => eliminar(i)}

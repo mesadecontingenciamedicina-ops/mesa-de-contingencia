@@ -36,11 +36,11 @@
 - [x] Actualizar `client.js` con los nuevos métodos de API
 
 ## Fase 4 — Frontend: Solicitudes Aprobadas
-- [ ] Nuevo `ModuloSolicitudesAprobadas.jsx`: tablero de solicitudes `Aprobada`, filtros por centro/grupo
-- [ ] Indicador "En Proceso" + grupo que reclamó, solo lectura para los demás
-- [ ] Modal/acordeón: reclamar, aportar cantidad + comentario por ítem, liberar / marcar resuelta
-- [ ] Actualizar navegación en `App.jsx` (agregar tab, quitar referencias viejas a Actividades donde corresponda)
-- [ ] Ajustar `VistaCentro.jsx` con los campos nuevos del formulario de solicitud
+- [x] Nuevo `ModuloSolicitudesAprobadas.jsx`: tablero de solicitudes `Aprobada`, filtros por centro/grupo
+- [x] Indicador "En Proceso" + grupo que reclamó, solo lectura para los demás
+- [x] Modal/acordeón: reclamar, aportar cantidad + comentario por ítem, liberar / marcar resuelta
+- [x] Actualizar navegación en `App.jsx` (agregar tab, quitar referencias viejas a Actividades donde corresponda)
+- [x] Ajustar `VistaCentro.jsx` con los campos nuevos del formulario de solicitud
 
 ## Fase 5 — Pruebas y Despliegue
 - [ ] Prueba E2E en dev: Grupo A crea solicitud → Coordinador aprueba → Grupo B reclama y aporta parcial → Grupo C completa y libera → Resuelta
