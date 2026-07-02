@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     lng                    DOUBLE PRECISION,
     fecha_creacion         TIMESTAMPTZ DEFAULT NOW(),
     fecha_actualizacion    TIMESTAMPTZ,
-    -- Flujo de aprobación (Tareas y Solicitudes desacopladas, ver plan-tareas-solicitudes.md)
+    -- Flujo de aprobación (Tareas y Solicitudes desacopladas, ver planes/2026-07-tareas-solicitudes/plan.md)
     estado                 VARCHAR(20) NOT NULL DEFAULT 'Pendiente',
     receptor_nombre        VARCHAR(200),
     receptor_telefono      VARCHAR(50),

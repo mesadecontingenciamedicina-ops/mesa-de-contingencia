@@ -1,4 +1,4 @@
-"""Migración: separar Tareas y Solicitudes (ver plan-tareas-solicitudes.md).
+"""Migración: separar Tareas y Solicitudes (ver planes/2026-07-tareas-solicitudes/plan.md).
 
 Estrategia "en paralelo": crea tablas/columnas nuevas sin tocar ni romper
 las tablas viejas (actividades, actividad_miembros, actividad_comentarios).

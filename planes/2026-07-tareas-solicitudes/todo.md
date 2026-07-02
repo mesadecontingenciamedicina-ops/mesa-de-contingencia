@@ -1,6 +1,6 @@
 # TODO — Separación de Tareas y Solicitudes
 
-> Ver plan completo en `plan-tareas-solicitudes.md`. Rama: `dev`.
+> Ver plan completo en `plan.md` (misma carpeta). Rama: `dev`.
 > Regla: al terminar cada Fase, me detengo para que revises antes de seguir con la siguiente.
 
 ## Fase 1 — Base de Datos y Modelado
@@ -47,7 +47,7 @@
 - [x] Prueba E2E en dev: creación y ciclo de vida completo de una Tarea (creación, cambio de estado, permisos, miembros, comentarios, archivar)
 - [x] Prueba: rechazo con motivo obligatorio (400 sin motivo) + reenvío de solicitud rechazada (vuelve a Pendiente)
 - [x] Limpieza de datos de prueba creados durante la verificación en `dev` (4 tareas + 4 solicitudes de prueba eliminadas; se confirmó que no se tocó ningún dato real)
-- [ ] Revisar que `contexto.md` quede actualizado con el nuevo modelo
+- [x] Revisar que `contexto.md` quede actualizado con el nuevo modelo
 - [ ] Confirmar plan de limpieza de tablas viejas (`actividades`, `actividad_miembros`, `actividad_comentarios`) antes de eliminarlas — **pendiente, se dejan por ahora** (hay uso real activo en `dev`, se decide más adelante)
 - [ ] Despliegue a producción (ver checklist detallado abajo)
 

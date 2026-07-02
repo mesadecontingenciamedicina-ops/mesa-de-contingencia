@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-02 (Separación de Tareas y Solicitudes, y flujos de aprobación y colaboración)
+> **Última actualización:** 2026-07-02 (Clasificación normalizada de Solicitudes por tipo de creador — Grupo/Centro/Administración/Externos — y reorganización de planes de trabajo en `planes/`)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -103,6 +103,7 @@ mesa-de-contingencia/
 │   │       ├── solicitudes.py    # CRUD /api/solicitudes + flujo de aprobación y aportes
 │   │       ├── tareas.py         # CRUD /api/tareas + asignación de miembros (reemplazó actividades.py)
 │   │       ├── comentarios.py    # Comentarios + notificaciones
+│   │       ├── publicaciones.py  # CRUD /api/publicaciones + comentarios de publicaciones
 │   │       └── insumos.py        # GET /api/insumos (búsqueda de catálogo)
 │   └── migrate*.py / seed*.py    # Scripts de migración y seed (varios, históricos)
 ├── frontend/
@@ -128,6 +129,7 @@ mesa-de-contingencia/
 │       │   ├── ModuloSolicitudesAprobadas.jsx# Tablero para reclamar y aportar a solicitudes
 │       │   ├── ModuloTareas.jsx              # Tablero Kanban de tareas directas
 │       │   ├── ModuloCentros.jsx             # Gestión de centros
+│       │   ├── ModuloPublicaciones.jsx       # Tablón de avisos/noticias
 │       │   ├── VistaCentro.jsx               # Vista para rol "centro"
 │       │   ├── PanelNotificaciones.jsx
 │       │   └── MapaPicker.jsx
@@ -153,7 +155,8 @@ mesa-de-contingencia/
 | `centros_atencion` | Centros de atención | id, nombre, descripcion, activo, direccion, lat, lng |
 | `centro_contactos` | Contactos de centro | id, centro_id, nombre, cargo, telefono, email |
 | `usuarios` | Usuarios de autenticación | id, username, password_hash, password_plain, rol (admin/grupo/centro), grupo_id, centro_id, activo |
-| `solicitudes` | Solicitudes de recursos/insumos | id, estado (Pendiente/Aprobada/Rechazada/Resuelta), descripcion, receptor_nombre, receptor_telefono, creado_por_grupo_id, creado_por_centro_id, reclamado_por_grupo_id, aprobado_por_username |
+| `tipos_solicitud` | Catálogo fijo (4 valores): clasifica quién originó la solicitud | id, nombre (Grupo/Centro/Administración/Externos) |
+| `solicitudes` | Solicitudes de recursos/insumos | id, estado (Pendiente/Aprobada/Rechazada/Resuelta), descripcion, receptor_nombre, receptor_telefono, creado_por_grupo_id, creado_por_centro_id, reclamado_por_grupo_id, aprobado_por_username, tipo_solicitud_id → tipos_solicitud |
 | `solicitud_log` | Historial/Auditoría de solicitudes | id, solicitud_id, evento, actor_username, fecha |
 | `insumos` | Catálogo de insumos médicos | id, codigo, nombre, forma_farmaceutica, concentracion, disponibilidad, prioridad |
 | `solicitud_items` | Items de cada solicitud | id, solicitud_id, insumo_id, nombre, cantidad, cantidad_flexible |
@@ -228,6 +231,7 @@ mesa-de-contingencia/
 3. **Solicitudes en Proceso**: Una solicitud `Aprobada` pasa a estado "En Proceso" virtualmente cuando `reclamado_por_grupo_id` tiene un valor. En este estado, los demás grupos reciben un 409 Conflict si intentan editarla.
 4. **Cantidades Flexibles**: Los ítems de las solicitudes pueden marcarse como `cantidad_flexible = true` (significa "cualquier cantidad").
 5. **CORS permisivo**: El backend acepta cualquier origen.
+6. **Tipo de Solicitud es automático**: `tipo_solicitud_id` se asigna solo al crear (según quién la crea: grupo→Grupo, centro→Centro, admin sin grupo/centro→Administración, cualquier otro caso→Externos). No hay selector manual ni pantalla para administrar el catálogo — son 4 valores fijos. `Externos` está reservado para un flujo futuro que hoy no existe en la UI.
 
 ---
 
@@ -249,3 +253,15 @@ mesa-de-contingencia/
    - Si falta algo → vuelve a `Aprobada` para que otro (o el mismo) grupo la reclame luego.
    - Alternativa: forzar "marcar-resuelta" si eran cantidades flexibles.
 6. **Notificaciones y Logs**: Se avisa al creador en aprobaciones/rechazos/resoluciones. Todo queda registrado en `solicitud_log`.
+
+---
+
+## 11. Organización de Planes de Trabajo
+
+Toda iniciativa de cierto tamaño (más de una sesión, más de un archivo) se planifica y documenta en `planes/AAAA-MM-nombre-corto/`, **no** en archivos sueltos en la raíz del repo. Cada carpeta contiene:
+
+- `plan.md` — contexto, decisiones y diseño técnico, escrito **antes** de implementar (normalmente sale de una sesión en modo plan).
+- `todo.md` — checklist de ejecución fase por fase, que se va marcando a medida que se avanza. Incluye el checklist de despliegue a producción cuando aplica.
+- `resumen.md` (opcional) — resumen post-implementación, solo si hace falta para retomar contexto rápido más allá de lo que ya dicen `plan.md`/`todo.md`.
+
+**Regla:** cuando se vaya a implementar un plan nuevo, su `plan.md` y su `todo.md` se guardan juntos en su propia carpeta dentro de `planes/`, siguiendo este mismo esquema — no se crean como archivos `.md` sueltos en la raíz. Las carpetas de iniciativas ya completadas no se borran (quedan como registro histórico). Ver `planes/README.md` para el detalle completo de la convención y el índice de iniciativas.

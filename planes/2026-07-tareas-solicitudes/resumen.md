@@ -1,6 +1,6 @@
 # Resumen — Separación de Tareas y Solicitudes
 
-> Basado en `plan-tareas-solicitudes.md` y `todo.md`. Estado a 2026-07-02: implementación completa en `dev` (Fases 1-4 y la mayor parte de la 5), pendiente solo el despliegue a producción.
+> Basado en `plan.md` y `todo.md` (misma carpeta). Estado a 2026-07-02: implementación completa en `dev` (Fases 1-4 y la mayor parte de la 5), pendiente solo el despliegue a producción.
 
 ---
 
@@ -31,7 +31,7 @@ Antes, "Actividades" (el trabajo en terreno) dependía de una "Solicitud" para e
 - Navegación y `client.js` actualizados.
 
 **Pendiente**
-- Actualizar `contexto.md` con el nuevo modelo.
+- ~~Actualizar `contexto.md` con el nuevo modelo.~~ Hecho (2026-07-02).
 - Decidir cuándo eliminar las tablas viejas (`actividades` y satélites) — se dejan por ahora porque siguen en uso real en `dev`.
 - Despliegue a producción (checklist detallado ya armado en `todo.md`: backup de BD, migración aditiva contra `public`, verificar variables de entorno en Railway/Vercel, validación post-deploy, plan de rollback).
 
