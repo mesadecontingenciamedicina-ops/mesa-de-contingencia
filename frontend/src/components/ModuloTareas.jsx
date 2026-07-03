@@ -29,6 +29,7 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const [tabDetalle,    setTabDetalle]    = useState("info");
   const [modalMiembros, setModalMiembros] = useState(null);
   const [seleccion,     setSeleccion]     = useState(new Set());
+  const [editDescripcion, setEditDescripcion] = useState("");
   const [guardando,     setGuardando]     = useState(false);
   const [modalNueva,    setModalNueva]    = useState(null);
   const [creando,       setCreando]       = useState(false);
@@ -80,6 +81,7 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const abrirModalMiembros = (t, e) => {
     e?.stopPropagation();
     setSeleccion(new Set(t.miembros.map(m => m.id)));
+    setEditDescripcion(t.descripcion || "");
     setModalMiembros(t);
   };
 
@@ -110,7 +112,12 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const guardarMiembros = async () => {
     setGuardando(true);
     try {
-      await api.setMiembrosTarea(modalMiembros.id, [...seleccion]);
+      const promises = [api.setMiembrosTarea(modalMiembros.id, [...seleccion])];
+      const descTrimmed = editDescripcion.trim();
+      if (descTrimmed && descTrimmed !== (modalMiembros.descripcion || "").trim()) {
+        promises.push(api.editarDescripcionTarea(modalMiembros.id, descTrimmed));
+      }
+      await Promise.all(promises);
       const ts = await reload();
       if (detalle?.id === modalMiembros.id) {
         const updated = ts.find(x => x.id === modalMiembros.id);
@@ -411,60 +418,69 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
       )}
 
       {/* ── Modal asignación de miembros ── */}
-      {modalMiembros && (
-        <div className="overlay" onClick={() => setModalMiembros(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>¿Quiénes trabajan en esto?</h3>
-            <p className="modal-desc">{modalMiembros.descripcion}</p>
+      {modalMiembros && (() => {
+        // Filtrar solo miembros del grupo de la tarea
+        const grupoTareaId = modalMiembros.grupo.id;
+        const miembrosDelGrupo = miembros.filter(m => m.grupo && m.grupo.id === grupoTareaId);
+        return (
+          <div className="overlay" onClick={() => setModalMiembros(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3>✏️ Editar tarea</h3>
+              <p style={{ fontSize: "0.8rem", color: "#6b7280", margin: "0 0 0.75rem" }}>
+                🏷️ {modalMiembros.grupo.nombre}
+              </p>
 
-            <div className="popover-list" style={{ maxHeight: 320, overflowY: "auto", margin: "0.75rem 0" }}>
-              {miembros.length === 0
-                ? <p className="empty">No hay miembros registrados.</p>
-                : (() => {
-                    const sinGrupo = miembros.filter(m => !m.grupo);
-                    const conGrupo = miembros.filter(m => m.grupo);
-                    const renderItem = (m) => (
-                      <label key={m.id} className="popover-item">
-                        <input type="checkbox"
-                          checked={seleccion.has(m.id)}
-                          onChange={() => toggleMiembro(m.id)}
-                        />
-                        <span>
-                          {m.nombre}
-                          {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
-                          {isPrivileged && m.grupo && <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: 6 }}>({m.grupo.nombre})</span>}
-                        </span>
-                      </label>
-                    );
-                    return (
-                      <>
-                        {sinGrupo.length > 0 && (
-                          <>
-                            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1 }}>PERSONAL ADMINISTRATIVO</div>
-                            {sinGrupo.map(renderItem)}
-                          </>
-                        )}
-                        {conGrupo.length > 0 && (
-                          <>
-                            {sinGrupo.length > 0 && <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1, marginTop: 4 }}>GRUPOS DE TRABAJO</div>}
-                            {conGrupo.map(renderItem)}
-                          </>
-                        )}
-                      </>
-                    );
-                  })()
-              }
-            </div>
+              {/* Campo de descripción editable */}
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, display: "block", marginBottom: "0.35rem" }}>
+                  DESCRIPCIÓN
+                </label>
+                <textarea
+                  rows={3}
+                  value={editDescripcion}
+                  onChange={e => setEditDescripcion(e.target.value)}
+                  placeholder="Descripción de la tarea..."
+                  style={{
+                    width: "100%", resize: "vertical", padding: "0.5rem 0.75rem",
+                    border: "1px solid var(--border)", borderRadius: 8,
+                    fontSize: "0.9rem", fontFamily: "inherit", boxSizing: "border-box",
+                    lineHeight: 1.5, color: "var(--text)", background: "#f9fafb"
+                  }}
+                />
+              </div>
 
-            <div className="modal-actions">
-              <button className="btn-primary" disabled={guardando} onClick={guardarMiembros}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-              <button className="btn-ghost" onClick={() => setModalMiembros(null)}>Cancelar</button>
+              {/* Lista de miembros del grupo */}
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, marginBottom: "0.4rem" }}>
+                MIEMBROS DEL GRUPO
+              </div>
+              <div className="popover-list" style={{ maxHeight: 260, overflowY: "auto", margin: "0 0 0.75rem" }}>
+                {miembrosDelGrupo.length === 0
+                  ? <p className="empty">No hay miembros en este grupo.</p>
+                  : miembrosDelGrupo.map(m => (
+                    <label key={m.id} className="popover-item">
+                      <input type="checkbox"
+                        checked={seleccion.has(m.id)}
+                        onChange={() => toggleMiembro(m.id)}
+                      />
+                      <span>
+                        {m.nombre}
+                        {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
+                      </span>
+                    </label>
+                  ))
+                }
+              </div>
+
+              <div className="modal-actions">
+                <button className="btn-primary" disabled={guardando} onClick={guardarMiembros}>
+                  {guardando ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button className="btn-ghost" onClick={() => setModalMiembros(null)}>Cancelar</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -65,8 +65,16 @@ def actualizar_tarea(tarea_id):
     user = get_current_user()
     data = request.get_json() or {}
     nuevo_estado = data.get("estado")
-    if nuevo_estado not in ESTADOS:
+    nueva_descripcion = (data.get("descripcion") or "").strip() or None
+
+    # Validar estado solo si se envió
+    if nuevo_estado is not None and nuevo_estado not in ESTADOS:
         return jsonify({"error": f"Estado inválido. Valores: {ESTADOS}"}), 400
+
+    # Debe enviarse al menos uno de los dos campos
+    if nuevo_estado is None and nueva_descripcion is None:
+        return jsonify({"error": "Se requiere 'estado' o 'descripcion'"}), 400
+
     conn = get_connection()
     cur = conn.cursor()
     if not is_privileged(user) and user["rol"] == "grupo":
@@ -75,12 +83,23 @@ def actualizar_tarea(tarea_id):
         if not row or row[0] != user["grupo_id"]:
             conn.close()
             return jsonify({"error": "Acceso denegado"}), 403
-    cur.execute("""
-        UPDATE tareas SET estado = %s, fecha_actualizacion = NOW() WHERE id = %s
-    """, (nuevo_estado, tarea_id))
+
+    if nuevo_estado is not None and nueva_descripcion is not None:
+        cur.execute("""
+            UPDATE tareas SET estado = %s, descripcion = %s, fecha_actualizacion = NOW() WHERE id = %s
+        """, (nuevo_estado, nueva_descripcion, tarea_id))
+    elif nuevo_estado is not None:
+        cur.execute("""
+            UPDATE tareas SET estado = %s, fecha_actualizacion = NOW() WHERE id = %s
+        """, (nuevo_estado, tarea_id))
+    else:
+        cur.execute("""
+            UPDATE tareas SET descripcion = %s, fecha_actualizacion = NOW() WHERE id = %s
+        """, (nueva_descripcion, tarea_id))
+
     conn.commit()
     conn.close()
-    return jsonify({"id": tarea_id, "estado": nuevo_estado})
+    return jsonify({"id": tarea_id, "estado": nuevo_estado, "descripcion": nueva_descripcion})
 
 
 @main_bp.put("/api/tareas/<int:tarea_id>/miembros")

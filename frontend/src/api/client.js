@@ -94,6 +94,7 @@ export const api = {
   getTareas: () => req("GET", "/tareas"),
   crearTarea: (d) => req("POST", "/tareas", d),
   actualizarTarea: (id, estado) => req("PUT", `/tareas/${id}`, { estado }),
+  editarDescripcionTarea: (id, descripcion) => req("PUT", `/tareas/${id}`, { descripcion }),
   archivarTarea: (id) => req("DELETE", `/tareas/${id}`),
   setMiembrosTarea: (id, miembro_ids) => req("PUT", `/tareas/${id}/miembros`, { miembro_ids }),
 
