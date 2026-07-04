@@ -1,6 +1,8 @@
 import { useState, useEffect, lazy, Suspense, useRef } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import 'react-phone-number-input/style.css';
+import PhoneInput from 'react-phone-number-input';
 
 const MapaPicker = lazy(() => import("./MapaPicker"));
 
@@ -237,9 +239,9 @@ export default function ModuloSolicitudes({ onDataChange }) {
                 placeholder="Nombre de la persona que recibirá lo solicitado" />
             </label>
             <label>Teléfono de quien recibe
-              <input value={form.receptor_telefono}
-                onChange={e => f("receptor_telefono", e.target.value)}
-                placeholder="04XX-XXXXXXX" />
+              <PhoneInput defaultCountry="VE" value={form.receptor_telefono}
+                onChange={val => f("receptor_telefono", val || "")}
+                placeholder="+58 412 1234567" />
             </label>
           </div>
 
@@ -490,8 +492,8 @@ export default function ModuloSolicitudes({ onDataChange }) {
                     onChange={e => setEditando(p => ({ ...p, receptor_nombre: e.target.value }))} />
                 </label>
                 <label>Teléfono de quien recibe
-                  <input value={editando.receptor_telefono}
-                    onChange={e => setEditando(p => ({ ...p, receptor_telefono: e.target.value }))} />
+                  <PhoneInput defaultCountry="VE" value={editando.receptor_telefono}
+                    onChange={val => setEditando(p => ({ ...p, receptor_telefono: val || "" }))} />
                 </label>
               </div>
               <TablaItems items={editando.items || []}

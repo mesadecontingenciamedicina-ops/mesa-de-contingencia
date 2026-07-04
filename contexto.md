@@ -90,7 +90,7 @@ mesa-de-contingencia/
 │   │   ├── __init__.py           # Flask factory (create_app), CORS manual, OPTIONS handler
 │   │   ├── db.py                 # get_connection() via DATABASE_URL + psycopg2
 │   │   ├── auth.py               # JWT login/logout, decoradores @require_auth, @require_admin, @require_privileged
-│   │   ├── validaciones.py       # Validación de cédula, teléfono, email, miembros (Venezuela)
+│   │   ├── validaciones.py       # Validación de cédula, teléfono (Internacional E.164), email, miembros
 │   │   ├── schema.sql            # Esquema legacy (SQL Server)
 │   │   ├── schema_supabase.sql   # Esquema actual PostgreSQL
 │   │   └── routes/

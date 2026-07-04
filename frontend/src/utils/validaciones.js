@@ -1,25 +1,8 @@
-const PREFIJOS_MOVIL = ["0412", "0414", "0416", "0422", "0424", "0426"];
-const PREFIJOS_FIJO  = ["0212", "0234", "0237", "0238", "0239",
-                        "0241", "0242", "0243", "0244", "0245",
-                        "0246", "0247", "0248", "0249", "0251",
-                        "0252", "0253", "0254", "0255", "0256",
-                        "0257", "0258", "0259", "0261", "0262",
-                        "0263", "0264", "0265", "0266", "0267",
-                        "0268", "0269", "0271", "0272", "0273",
-                        "0274", "0275", "0276", "0277", "0278",
-                        "0279", "0281", "0283", "0285", "0286",
-                        "0287", "0288", "0289", "0291", "0292",
-                        "0293", "0294", "0295", "0299"];
-const TODOS_PREFIJOS = [...PREFIJOS_MOVIL, ...PREFIJOS_FIJO];
+import { isValidPhoneNumber } from 'react-phone-number-input';
 
-// Acepta: 04XX-XXXXXXX, 04XXXXXXXXX, 02XX-XXXXXXX, 02XXXXXXXXX
 export function validarTelefono(valor) {
   if (!valor) return null; // opcional
-  const limpio = valor.replace(/[\s\-]/g, "");
-  if (!/^\d{11}$/.test(limpio)) return "Debe tener 11 dígitos (ej. 0412-1234567).";
-  const prefijo = limpio.slice(0, 4);
-  if (!TODOS_PREFIJOS.includes(prefijo))
-    return `Prefijo inválido. Móviles: ${PREFIJOS_MOVIL.join(", ")}.`;
+  if (!isValidPhoneNumber(valor)) return "Número de teléfono internacional inválido.";
   return null;
 }
 

@@ -1,24 +1,17 @@
 import re
-
-PREFIJOS = {"0412","0414","0416","0422","0424","0426",
-            "0212","0234","0237","0238","0239",
-            "0241","0242","0243","0244","0245","0246","0247","0248","0249",
-            "0251","0252","0253","0254","0255","0256","0257","0258","0259",
-            "0261","0262","0263","0264","0265","0266","0267","0268","0269",
-            "0271","0272","0273","0274","0275","0276","0277","0278","0279",
-            "0281","0283","0285","0286","0287","0288","0289",
-            "0291","0292","0293","0294","0295","0299"}
+import phonenumbers
 
 CARGOS = {"Profesor","Estudiante","BR","Auxiliar","Voluntario"}
 
 def validar_telefono(valor):
     if not valor:
         return None
-    limpio = re.sub(r"[\s\-]", "", valor)
-    if not re.fullmatch(r"\d{11}", limpio):
-        return "Debe tener 11 dígitos (ej. 0412-1234567)."
-    if limpio[:4] not in PREFIJOS:
-        return f"Prefijo inválido. Móviles: 0412, 0414, 0416, 0424, 0426."
+    try:
+        parsed = phonenumbers.parse(valor, None)
+        if not phonenumbers.is_valid_number(parsed):
+            return "Número de teléfono internacional inválido."
+    except phonenumbers.NumberParseException:
+        return "Formato inválido. Asegúrese de incluir el código de país (ej. +58)."
     return None
 
 def validar_email(valor):
