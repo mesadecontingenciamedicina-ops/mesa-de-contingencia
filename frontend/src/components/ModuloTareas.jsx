@@ -29,6 +29,8 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const [tabDetalle,    setTabDetalle]    = useState("info");
   const [modalMiembros, setModalMiembros] = useState(null);
   const [seleccion,     setSeleccion]     = useState(new Set());
+  const [editDescripcion, setEditDescripcion] = useState("");
+  const [dropdownMiembros, setDropdownMiembros] = useState(false);
   const [guardando,     setGuardando]     = useState(false);
   const [modalNueva,    setModalNueva]    = useState(null);
   const [creando,       setCreando]       = useState(false);
@@ -80,6 +82,8 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const abrirModalMiembros = (t, e) => {
     e?.stopPropagation();
     setSeleccion(new Set(t.miembros.map(m => m.id)));
+    setEditDescripcion(t.descripcion || "");
+    setDropdownMiembros(false);
     setModalMiembros(t);
   };
 
@@ -110,7 +114,12 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   const guardarMiembros = async () => {
     setGuardando(true);
     try {
-      await api.setMiembrosTarea(modalMiembros.id, [...seleccion]);
+      const promises = [api.setMiembrosTarea(modalMiembros.id, [...seleccion])];
+      const descTrimmed = editDescripcion.trim();
+      if (descTrimmed && descTrimmed !== (modalMiembros.descripcion || "").trim()) {
+        promises.push(api.editarDescripcionTarea(modalMiembros.id, descTrimmed));
+      }
+      await Promise.all(promises);
       const ts = await reload();
       if (detalle?.id === modalMiembros.id) {
         const updated = ts.find(x => x.id === modalMiembros.id);
@@ -411,60 +420,150 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
       )}
 
       {/* ── Modal asignación de miembros ── */}
-      {modalMiembros && (
-        <div className="overlay" onClick={() => setModalMiembros(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>¿Quiénes trabajan en esto?</h3>
-            <p className="modal-desc">{modalMiembros.descripcion}</p>
+      {modalMiembros && (() => {
+        // Filtrar solo miembros del grupo de la tarea
+        const grupoTareaId = modalMiembros.grupo.id;
+        const miembrosDelGrupo = miembros.filter(m => m.grupo && m.grupo.id === grupoTareaId);
+        return (
+          <div className="overlay" onClick={() => setModalMiembros(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3>✏️ Editar tarea</h3>
+              <p style={{ fontSize: "0.8rem", color: "#6b7280", margin: "0 0 0.75rem" }}>
+                🏷️ {modalMiembros.grupo.nombre}
+              </p>
 
-            <div className="popover-list" style={{ maxHeight: 320, overflowY: "auto", margin: "0.75rem 0" }}>
-              {miembros.length === 0
-                ? <p className="empty">No hay miembros registrados.</p>
-                : (() => {
-                    const sinGrupo = miembros.filter(m => !m.grupo);
-                    const conGrupo = miembros.filter(m => m.grupo);
-                    const renderItem = (m) => (
-                      <label key={m.id} className="popover-item">
-                        <input type="checkbox"
-                          checked={seleccion.has(m.id)}
-                          onChange={() => toggleMiembro(m.id)}
-                        />
-                        <span>
-                          {m.nombre}
-                          {m.cargo && <span className="cargo-chip" style={{ marginLeft: 6 }}>{m.cargo}</span>}
-                          {isPrivileged && m.grupo && <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: 6 }}>({m.grupo.nombre})</span>}
+              {/* Campo de descripción editable */}
+              <div style={{ marginBottom: "1rem" }}>
+                <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, display: "block", marginBottom: "0.35rem" }}>
+                  DESCRIPCIÓN
+                </label>
+                <textarea
+                  rows={3}
+                  value={editDescripcion}
+                  onChange={e => setEditDescripcion(e.target.value)}
+                  placeholder="Descripción de la tarea..."
+                  style={{
+                    width: "100%", resize: "vertical", padding: "0.5rem 0.75rem",
+                    border: "1px solid var(--border)", borderRadius: 8,
+                    fontSize: "0.9rem", fontFamily: "inherit", boxSizing: "border-box",
+                    lineHeight: 1.5, color: "var(--text)", background: "#f9fafb"
+                  }}
+                />
+              </div>
+
+              {/* Multi-select dropdown de miembros */}
+              <div style={{ marginBottom: "0.75rem", position: "relative" }}>
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6b7280", letterSpacing: 1, marginBottom: "0.4rem" }}>
+                  MIEMBROS ASIGNADOS
+                </div>
+
+                {/* Trigger */}
+                <div
+                  onClick={() => setDropdownMiembros(p => !p)}
+                  style={{
+                    border: `1px solid ${dropdownMiembros ? "#3b82f6" : "var(--border)"}`,
+                    borderRadius: 8, padding: "0.45rem 0.65rem",
+                    cursor: "pointer", background: "#f9fafb",
+                    minHeight: "2.4rem", display: "flex",
+                    flexWrap: "wrap", gap: "0.3rem",
+                    alignItems: "center", userSelect: "none",
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  {seleccion.size === 0
+                    ? <span style={{ color: "#9ca3af", fontSize: "0.875rem", flexGrow: 1 }}>— Seleccionar miembros —</span>
+                    : miembrosDelGrupo.filter(m => seleccion.has(m.id)).map(m => (
+                        <span key={m.id} style={{
+                          background: "#dbeafe", color: "#1d4ed8",
+                          borderRadius: 20, padding: "2px 8px 2px 10px",
+                          fontSize: "0.78rem", fontWeight: 600,
+                          display: "flex", alignItems: "center", gap: 3,
+                        }}>
+                          {m.nombre.split(" ")[0]}{m.cargo ? ` (${m.cargo})` : ""}
+                          <span
+                            onClick={e => { e.stopPropagation(); toggleMiembro(m.id); }}
+                            style={{ cursor: "pointer", fontWeight: 700, opacity: 0.6, fontSize: "0.9rem", lineHeight: 1 }}
+                          >×</span>
                         </span>
-                      </label>
-                    );
-                    return (
-                      <>
-                        {sinGrupo.length > 0 && (
-                          <>
-                            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1 }}>PERSONAL ADMINISTRATIVO</div>
-                            {sinGrupo.map(renderItem)}
-                          </>
-                        )}
-                        {conGrupo.length > 0 && (
-                          <>
-                            {sinGrupo.length > 0 && <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", padding: "4px 8px", letterSpacing: 1, marginTop: 4 }}>GRUPOS DE TRABAJO</div>}
-                            {conGrupo.map(renderItem)}
-                          </>
-                        )}
-                      </>
-                    );
-                  })()
-              }
-            </div>
+                      ))
+                  }
+                  <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: "0.75rem", flexShrink: 0 }}>
+                    {dropdownMiembros ? "▲" : "▼"}
+                  </span>
+                </div>
 
-            <div className="modal-actions">
-              <button className="btn-primary" disabled={guardando} onClick={guardarMiembros}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-              <button className="btn-ghost" onClick={() => setModalMiembros(null)}>Cancelar</button>
+                {/* Dropdown */}
+                {dropdownMiembros && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 10 }}
+                      onClick={() => setDropdownMiembros(false)}
+                    />
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 4px)",
+                      left: 0, right: 0,
+                      background: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 8,
+                      boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+                      zIndex: 11,
+                      maxHeight: 220, overflowY: "auto",
+                    }}>
+                      {miembrosDelGrupo.length === 0
+                        ? <p className="empty" style={{ padding: "0.75rem", margin: 0 }}>No hay miembros en este grupo.</p>
+                        : miembrosDelGrupo.map(m => (
+                          <div
+                            key={m.id}
+                            onClick={() => toggleMiembro(m.id)}
+                            style={{
+                              padding: "0.5rem 0.75rem",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.6rem",
+                              background: seleccion.has(m.id) ? "#eff6ff" : "transparent",
+                              borderBottom: "1px solid #f3f4f6",
+                              fontSize: "0.875rem",
+                              transition: "background 0.1s",
+                            }}
+                          >
+                            {/* Checkbox visual */}
+                            <span style={{
+                              width: 16, height: 16, flexShrink: 0,
+                              borderRadius: 4,
+                              border: `2px solid ${seleccion.has(m.id) ? "#3b82f6" : "#d1d5db"}`,
+                              background: seleccion.has(m.id) ? "#3b82f6" : "transparent",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "all 0.15s",
+                            }}>
+                              {seleccion.has(m.id) && (
+                                <span style={{ color: "#fff", fontSize: 10, fontWeight: 900, lineHeight: 1 }}>✓</span>
+                              )}
+                            </span>
+                            <span style={{ flexGrow: 1 }}>
+                              {m.nombre}
+                              {m.cargo && (
+                                <span style={{ fontSize: "0.72rem", color: "#6b7280", marginLeft: 6 }}>{m.cargo}</span>
+                              )}
+                            </span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                <button className="btn-primary" disabled={guardando} onClick={guardarMiembros}>
+                  {guardando ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button className="btn-ghost" onClick={() => setModalMiembros(null)}>Cancelar</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

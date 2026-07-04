@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-02 (Notificaciones para centros, autocompletar receptor con contacto del centro, lista de ítems en VistaCentro; mensaje general al resolver + historial; rediseño de Solicitudes Aprobadas; clasificación normalizada por tipo de creador)
+> **Última actualización:** 2026-07-03 (Modal ✏️ de tareas: filtra miembros por grupo, edita descripción, selector de miembros rediseñado como multi-select desplegable con chips)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -90,7 +90,7 @@ mesa-de-contingencia/
 │   │   ├── __init__.py           # Flask factory (create_app), CORS manual, OPTIONS handler
 │   │   ├── db.py                 # get_connection() via DATABASE_URL + psycopg2
 │   │   ├── auth.py               # JWT login/logout, decoradores @require_auth, @require_admin, @require_privileged
-│   │   ├── validaciones.py       # Validación de cédula, teléfono, email, miembros (Venezuela)
+│   │   ├── validaciones.py       # Validación de cédula, teléfono (Internacional E.164), email, miembros
 │   │   ├── schema.sql            # Esquema legacy (SQL Server)
 │   │   ├── schema_supabase.sql   # Esquema actual PostgreSQL
 │   │   └── routes/
@@ -132,6 +132,7 @@ mesa-de-contingencia/
 │       │   ├── ModuloPublicaciones.jsx       # Tablón de avisos/noticias
 │       │   ├── VistaCentro.jsx               # Vista para rol "centro"
 │       │   ├── PanelNotificaciones.jsx
+│       │   ├── TelefonoInput.jsx             # Wrapper de PhoneInput con placeholder dinámico por país
 │       │   └── MapaPicker.jsx
 │       └── utils/
 │           └── validaciones.js   # Validaciones client-side
@@ -197,7 +198,7 @@ mesa-de-contingencia/
 |--------|------|------|-------------|
 | GET | `/api/tareas` | Auth | Listar (privileged: todas, grupo: solo las suyas) |
 | POST | `/api/tareas` | Auth | Crear tarea directa |
-| PUT | `/api/tareas/:id` | Auth | Cambiar estado (Por ejecutar/En ejecución/Ejecutado) |
+| PUT | `/api/tareas/:id` | Auth | Cambiar estado y/o descripción. Acepta `{ estado?, descripcion? }` — al menos uno de los dos es obligatorio |
 | PUT | `/api/tareas/:id/miembros` | Auth | Asignar miembros a tarea |
 | DELETE | `/api/tareas/:id` | Auth | Soft-delete (archiva la tarea) |
 
@@ -242,6 +243,7 @@ mesa-de-contingencia/
 7. **Solicitudes Aprobadas sin modal**: Las tarjetas del tablero muestran todo inline (cabecera, ítems, acciones) — no hay vista de detalle en modal. "Terminar y guardar" (`/liberar`) guarda aportes parciales y suelta el bloqueo; "Resolver y guardar" (`/marcar-resuelta`) guarda aportes y fuerza el cierre sin soltar el bloqueo a mitad de camino.
 8. **`solicitud_log` es legible**: dejó de ser una tabla de solo-escritura. `GET /solicitudes/:id/historial` la expone; el frontend la muestra como "Historial" (toggle por tarjeta en Solicitudes Aprobadas, sección fija en el modal de detalle en Mis Solicitudes/VistaCentro). El mensaje general que se escribe al resolver (parcial o completa) se guarda ahí, concatenado al resumen autogenerado — no hizo falta ninguna columna ni tabla nueva.
 9. **Notificaciones para centros sin tocar el esquema**: `notificaciones.para_grupo_id` no tiene FK real, así que se reutiliza para guardar el `centro_id` cuando `para_rol = 'centro'` (antes solo existía `para_rol IN ('admin','grupo')`). Toda consulta sobre esa tabla filtra siempre por `(para_rol, para_grupo_id)` juntos — nunca por el id solo — así que no hay riesgo de que un id de grupo choque con un id de centro. `_notificar_creador()` en `solicitudes.py` decide el `para_rol` según si la solicitud la creó un grupo o un centro.
+10. **Modal ✏️ de tareas (asignar miembros + editar descripción)**: El botón ✏️ en cada tarjeta del Kanban abre un modal que: (a) muestra **solo los miembros del grupo al que pertenece la tarea** (filtrado client-side); (b) muestra la descripción actual en un `<textarea>` editable; (c) usa un **multi-select desplegable** para asignar miembros — el trigger muestra chips azules con los seleccionados (cada chip tiene `×` para deseleccionar sin abrir el dropdown), y al hacer clic se despliega una lista con checkbox visual estilizado y resaltado de fila. El dropdown se cierra con backdrop invisible. Al guardar, si la descripción cambió se llama a `PUT /api/tareas/:id` con `{ descripcion }` en paralelo con `PUT /api/tareas/:id/miembros` mediante `Promise.all`. El endpoint `PUT /api/tareas/:id` fue extendido para aceptar `descripcion` de forma opcional junto a `estado` (también opcional), siendo requisito enviar al menos uno de los dos.
 
 ---
 

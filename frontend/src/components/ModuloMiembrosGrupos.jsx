@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { validarFormMiembro, normalizarCedula } from "../utils/validaciones";
+import TelefonoInput from "./TelefonoInput";
 
 const CARGOS = ["Profesor", "Estudiante", "BR", "Auxiliar", "Voluntario"];
 const FORM_VACIO = { nombre: "", cedula: "", telefono: "", tlf_alternativo: "", cargo: "", email: "", grupo_ids: [] };
@@ -73,7 +74,18 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       setForm(FORM_VACIO); setErrores({}); setTocado({});
       await reload(); onDataChange();
       flash(`Miembro registrado${!isAdmin ? " y asignado a tu grupo" : ""}.`);
-    } catch (err) { flash(err.message, false); }
+    } catch (err) { 
+      if (err.campos) {
+        setErrores(err.campos);
+        const keys = Object.keys(err.campos);
+        const newTocado = {};
+        keys.forEach(k => newTocado[k] = true);
+        setTocado(p => ({ ...p, ...newTocado }));
+        flash("Por favor corrige los campos marcados en rojo.", false);
+      } else {
+        flash(err.message, false); 
+      }
+    }
   };
 
   // ── Edición de grupo (solo admin) ──
@@ -174,7 +186,13 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       setEditandoMiembro(null);
       await reload(); onDataChange();
       flash("Miembro actualizado.");
-    } catch (err) { flash(err.message, false); }
+    } catch (err) { 
+      if (err.campos) {
+        flash(`Error: ${Object.values(err.campos).join(" ")}`, false);
+      } else {
+        flash(err.message, false); 
+      }
+    }
   };
 
   const eliminarMiembro = async (m) => {
@@ -235,14 +253,14 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             </Campo>
           </div>
           <div className="form-row">
-            <Campo label="Teléfono principal *" error={tocado.telefono && errores.telefono} hint="0412-1234567">
-              <input value={form.telefono} placeholder="0412-1234567"
-                onChange={e => cambiarCampo("telefono", e.target.value.replace(/[^0-9\-]/g, ""))} onBlur={() => marcarTocado("telefono")}
+            <Campo label="Teléfono principal *" error={tocado.telefono && errores.telefono}>
+              <TelefonoInput value={form.telefono}
+                onChange={val => cambiarCampo("telefono", val || "")} onBlur={() => marcarTocado("telefono")}
                 className={tocado.telefono && errores.telefono ? "input-err" : ""} />
             </Campo>
-            <Campo label="Teléfono alternativo" error={tocado.tlf_alternativo && errores.tlf_alternativo} hint="0212-5554321 (opcional)">
-              <input value={form.tlf_alternativo} placeholder="0212-5554321"
-                onChange={e => cambiarCampo("tlf_alternativo", e.target.value.replace(/[^0-9\-]/g, ""))} onBlur={() => marcarTocado("tlf_alternativo")}
+            <Campo label="Teléfono alternativo" error={tocado.tlf_alternativo && errores.tlf_alternativo} hint="Opcional">
+              <TelefonoInput value={form.tlf_alternativo}
+                onChange={val => cambiarCampo("tlf_alternativo", val || "")} onBlur={() => marcarTocado("tlf_alternativo")}
                 className={tocado.tlf_alternativo && errores.tlf_alternativo ? "input-err" : ""} />
             </Campo>
           </div>
@@ -408,7 +426,13 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                       setModalPA(null);
                       await reload(); onDataChange();
                       flash("Personal registrado correctamente.");
-                    } catch (err) { flash(err.message, false); }
+                    } catch (err) { 
+                      if (err.campos) {
+                        flash(`Error: ${Object.values(err.campos).join(" ")}`, false);
+                      } else {
+                        flash(err.message, false); 
+                      }
+                    }
                   }}>
                     <div className="form-row">
                       <Campo label="Nombre completo *">
@@ -423,12 +447,12 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                     </div>
                     <div className="form-row">
                       <Campo label="Teléfono *">
-                        <input required value={modalPA.telefono || ""} placeholder="0412-1234567"
-                          onChange={e => setModalPA(p => ({ ...p, telefono: e.target.value.replace(/[^0-9\-]/g, "") }))} />
+                        <TelefonoInput required value={modalPA.telefono || ""}
+                          onChange={val => setModalPA(p => ({ ...p, telefono: val || "" }))} />
                       </Campo>
                       <Campo label="Teléfono alternativo">
-                        <input value={modalPA.tlf_alternativo || ""} placeholder="Opcional"
-                          onChange={e => setModalPA(p => ({ ...p, tlf_alternativo: e.target.value.replace(/[^0-9\-]/g, "") }))} />
+                        <TelefonoInput value={modalPA.tlf_alternativo || ""}
+                          onChange={val => setModalPA(p => ({ ...p, tlf_alternativo: val || "" }))} />
                       </Campo>
                     </div>
                     <div className="form-row">
@@ -657,14 +681,12 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
               </div>
               <div className="form-row">
                 <Campo label="Teléfono principal *">
-                  <input required value={editandoMiembro.telefono || ""}
-                    onChange={e => setEditandoMiembro(p => ({ ...p, telefono: e.target.value.replace(/[^0-9\-]/g, "") }))}
-                    placeholder="0412-1234567" />
+                  <TelefonoInput required value={editandoMiembro.telefono || ""}
+                    onChange={val => setEditandoMiembro(p => ({ ...p, telefono: val || "" }))} />
                 </Campo>
                 <Campo label="Teléfono alternativo">
-                  <input value={editandoMiembro.tlf_alternativo || ""}
-                    onChange={e => setEditandoMiembro(p => ({ ...p, tlf_alternativo: e.target.value.replace(/[^0-9\-]/g, "") }))}
-                    placeholder="Opcional" />
+                  <TelefonoInput value={editandoMiembro.tlf_alternativo || ""}
+                    onChange={val => setEditandoMiembro(p => ({ ...p, tlf_alternativo: val || "" }))} />
                 </Campo>
               </div>
               <div className="form-row">

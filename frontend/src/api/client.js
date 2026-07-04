@@ -32,12 +32,14 @@ async function req(method, path, body) {
 
   if (!res.ok) {
     const fallbackText = !isJson ? await res.text() : "";
-    throw new Error(
+    const err = new Error(
       data?.error ||
       data?.message ||
       fallbackText ||
       `Error ${res.status}: ${res.statusText}`
     );
+    if (data?.campos) err.campos = data.campos;
+    throw err;
   }
 
   return data;
@@ -94,6 +96,7 @@ export const api = {
   getTareas: () => req("GET", "/tareas"),
   crearTarea: (d) => req("POST", "/tareas", d),
   actualizarTarea: (id, estado) => req("PUT", `/tareas/${id}`, { estado }),
+  editarDescripcionTarea: (id, descripcion) => req("PUT", `/tareas/${id}`, { descripcion }),
   archivarTarea: (id) => req("DELETE", `/tareas/${id}`),
   setMiembrosTarea: (id, miembro_ids) => req("PUT", `/tareas/${id}/miembros`, { miembro_ids }),
 
