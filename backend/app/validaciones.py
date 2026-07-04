@@ -6,6 +6,12 @@ CARGOS = {"Profesor","Estudiante","BR","Auxiliar","Voluntario"}
 def validar_telefono(valor):
     if not valor:
         return None
+        
+    # Excepción: Permitir el nuevo código 0422 de Digitel (Venezuela) que puede no estar en la librería aún
+    limpio = valor.replace(" ", "")
+    if limpio.startswith("+58422") and len(limpio) == 13:
+        return None
+        
     try:
         parsed = phonenumbers.parse(valor, None)
         if not phonenumbers.is_valid_number(parsed):
