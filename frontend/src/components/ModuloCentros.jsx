@@ -1,7 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import { api } from "../api/client";
-import 'react-phone-number-input/style.css';
-import PhoneInput from 'react-phone-number-input';
+import TelefonoInput from "./TelefonoInput";
 
 const MapaPicker = lazy(() => import("./MapaPicker"));
 
@@ -285,8 +284,8 @@ export default function ModuloCentros() {
                       </div>
                       <div className="form-row">
                         <label style={{ flex: 1 }}>Teléfono
-                          <PhoneInput defaultCountry="VE" value={ct.telefono || ""}
-                            onChange={val => setContacto(i, "telefono", val || "")} placeholder="+58 412 1234567" />
+                          <TelefonoInput value={ct.telefono || ""}
+                            onChange={val => setContacto(i, "telefono", val || "")} />
                         </label>
                         <label style={{ flex: 1 }}>Email
                           <input value={ct.email || ""}

@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { validarFormMiembro, normalizarCedula } from "../utils/validaciones";
-import 'react-phone-number-input/style.css';
-import PhoneInput from 'react-phone-number-input';
+import TelefonoInput from "./TelefonoInput";
 
 const CARGOS = ["Profesor", "Estudiante", "BR", "Auxiliar", "Voluntario"];
 const FORM_VACIO = { nombre: "", cedula: "", telefono: "", tlf_alternativo: "", cargo: "", email: "", grupo_ids: [] };
@@ -237,13 +236,13 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
             </Campo>
           </div>
           <div className="form-row">
-            <Campo label="Teléfono principal *" error={tocado.telefono && errores.telefono} hint="Ej. +58 412 1234567">
-              <PhoneInput defaultCountry="VE" value={form.telefono} placeholder="+58 412 1234567"
+            <Campo label="Teléfono principal *" error={tocado.telefono && errores.telefono}>
+              <TelefonoInput value={form.telefono}
                 onChange={val => cambiarCampo("telefono", val || "")} onBlur={() => marcarTocado("telefono")}
                 className={tocado.telefono && errores.telefono ? "input-err" : ""} />
             </Campo>
             <Campo label="Teléfono alternativo" error={tocado.tlf_alternativo && errores.tlf_alternativo} hint="Opcional">
-              <PhoneInput defaultCountry="VE" value={form.tlf_alternativo} placeholder="+58 212 5554321"
+              <TelefonoInput value={form.tlf_alternativo}
                 onChange={val => cambiarCampo("tlf_alternativo", val || "")} onBlur={() => marcarTocado("tlf_alternativo")}
                 className={tocado.tlf_alternativo && errores.tlf_alternativo ? "input-err" : ""} />
             </Campo>
@@ -425,11 +424,11 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                     </div>
                     <div className="form-row">
                       <Campo label="Teléfono *">
-                        <PhoneInput defaultCountry="VE" required value={modalPA.telefono || ""} placeholder="+58 412 1234567"
+                        <TelefonoInput required value={modalPA.telefono || ""}
                           onChange={val => setModalPA(p => ({ ...p, telefono: val || "" }))} />
                       </Campo>
                       <Campo label="Teléfono alternativo">
-                        <PhoneInput defaultCountry="VE" value={modalPA.tlf_alternativo || ""} placeholder="Opcional"
+                        <TelefonoInput value={modalPA.tlf_alternativo || ""}
                           onChange={val => setModalPA(p => ({ ...p, tlf_alternativo: val || "" }))} />
                       </Campo>
                     </div>
@@ -659,14 +658,12 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
               </div>
               <div className="form-row">
                 <Campo label="Teléfono principal *">
-                  <PhoneInput defaultCountry="VE" required value={editandoMiembro.telefono || ""}
-                    onChange={val => setEditandoMiembro(p => ({ ...p, telefono: val || "" }))}
-                    placeholder="+58 412 1234567" />
+                  <TelefonoInput required value={editandoMiembro.telefono || ""}
+                    onChange={val => setEditandoMiembro(p => ({ ...p, telefono: val || "" }))} />
                 </Campo>
                 <Campo label="Teléfono alternativo">
-                  <PhoneInput defaultCountry="VE" value={editandoMiembro.tlf_alternativo || ""}
-                    onChange={val => setEditandoMiembro(p => ({ ...p, tlf_alternativo: val || "" }))}
-                    placeholder="Opcional" />
+                  <TelefonoInput value={editandoMiembro.tlf_alternativo || ""}
+                    onChange={val => setEditandoMiembro(p => ({ ...p, tlf_alternativo: val || "" }))} />
                 </Campo>
               </div>
               <div className="form-row">
