@@ -24,6 +24,7 @@ export default function TelefonoInput({ value, onChange, placeholder, required, 
       required={required}
       className={className}
       labels={es}
+      limitMaxLength={true}
     />
   );
 }
