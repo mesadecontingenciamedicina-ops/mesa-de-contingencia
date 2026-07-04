@@ -132,6 +132,7 @@ mesa-de-contingencia/
 │       │   ├── ModuloPublicaciones.jsx       # Tablón de avisos/noticias
 │       │   ├── VistaCentro.jsx               # Vista para rol "centro"
 │       │   ├── PanelNotificaciones.jsx
+│       │   ├── TelefonoInput.jsx             # Wrapper de PhoneInput con placeholder dinámico por país
 │       │   └── MapaPicker.jsx
 │       └── utils/
 │           └── validaciones.js   # Validaciones client-side
