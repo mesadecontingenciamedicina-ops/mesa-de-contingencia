@@ -2,6 +2,11 @@ import { isValidPhoneNumber } from 'react-phone-number-input';
 
 export function validarTelefono(valor) {
   if (!valor) return null; // opcional
+  
+  // Excepción: Permitir el nuevo código 0422 de Digitel (Venezuela) que puede no estar en la librería aún
+  const limpio = valor.replace(/\s+/g, "");
+  if (limpio.startsWith("+58422") && limpio.length === 13) return null;
+
   if (!isValidPhoneNumber(valor)) return "Número de teléfono internacional inválido.";
   return null;
 }
