@@ -32,12 +32,14 @@ async function req(method, path, body) {
 
   if (!res.ok) {
     const fallbackText = !isJson ? await res.text() : "";
-    throw new Error(
+    const err = new Error(
       data?.error ||
       data?.message ||
       fallbackText ||
       `Error ${res.status}: ${res.statusText}`
     );
+    if (data?.campos) err.campos = data.campos;
+    throw err;
   }
 
   return data;

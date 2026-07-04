@@ -74,7 +74,18 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       setForm(FORM_VACIO); setErrores({}); setTocado({});
       await reload(); onDataChange();
       flash(`Miembro registrado${!isAdmin ? " y asignado a tu grupo" : ""}.`);
-    } catch (err) { flash(err.message, false); }
+    } catch (err) { 
+      if (err.campos) {
+        setErrores(err.campos);
+        const keys = Object.keys(err.campos);
+        const newTocado = {};
+        keys.forEach(k => newTocado[k] = true);
+        setTocado(p => ({ ...p, ...newTocado }));
+        flash("Por favor corrige los campos marcados en rojo.", false);
+      } else {
+        flash(err.message, false); 
+      }
+    }
   };
 
   // ── Edición de grupo (solo admin) ──
@@ -175,7 +186,13 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
       setEditandoMiembro(null);
       await reload(); onDataChange();
       flash("Miembro actualizado.");
-    } catch (err) { flash(err.message, false); }
+    } catch (err) { 
+      if (err.campos) {
+        flash(`Error: ${Object.values(err.campos).join(" ")}`, false);
+      } else {
+        flash(err.message, false); 
+      }
+    }
   };
 
   const eliminarMiembro = async (m) => {
@@ -409,7 +426,13 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                       setModalPA(null);
                       await reload(); onDataChange();
                       flash("Personal registrado correctamente.");
-                    } catch (err) { flash(err.message, false); }
+                    } catch (err) { 
+                      if (err.campos) {
+                        flash(`Error: ${Object.values(err.campos).join(" ")}`, false);
+                      } else {
+                        flash(err.message, false); 
+                      }
+                    }
                   }}>
                     <div className="form-row">
                       <Campo label="Nombre completo *">
