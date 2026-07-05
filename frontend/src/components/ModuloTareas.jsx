@@ -240,8 +240,20 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
                     </div>
 
                     {t.comentarios_count > 0 && (
-                      <div style={{ marginTop: "0.4rem", fontSize: "0.78rem", color: "#6b7280", display: "flex", alignItems: "center", gap: "0.3rem", fontWeight: 600 }}>
-                        💬 {t.comentarios_count} comentario{t.comentarios_count !== 1 ? "s" : ""}
+                      <div style={{ 
+                        marginTop: "0.6rem", 
+                        fontSize: "0.82rem", 
+                        color: "#4b5563", 
+                        display: "inline-flex", 
+                        alignItems: "center", 
+                        gap: "0.35rem", 
+                        fontWeight: 600,
+                        border: "1px solid #d1d5db",
+                        background: "#f9fafb",
+                        padding: "0.25rem 0.6rem",
+                        borderRadius: "6px"
+                      }}>
+                        <span style={{ fontSize: "0.9rem" }}>💬</span> {t.comentarios_count} comentario{t.comentarios_count !== 1 ? "s" : ""}
                       </div>
                     )}
 
