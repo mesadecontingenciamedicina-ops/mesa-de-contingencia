@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-03 (Modal ✏️ de tareas: filtra miembros por grupo, edita descripción, selector de miembros rediseñado como multi-select desplegable con chips)
+> **Última actualización:** 2026-07-05 (Tareas: contador de comentarios en tarjetas del Kanban y visualización de comentarios tipo acordeón. Bypass para prefijo telefónico 422 de Digitel.)
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---

@@ -239,6 +239,12 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
                       </button>
                     </div>
 
+                    {t.comentarios_count > 0 && (
+                      <div style={{ marginTop: "0.4rem", fontSize: "0.78rem", color: "#6b7280", display: "flex", alignItems: "center", gap: "0.3rem", fontWeight: 600 }}>
+                        💬 {t.comentarios_count} comentario{t.comentarios_count !== 1 ? "s" : ""}
+                      </div>
+                    )}
+
                     <div className="kcard-actions" onClick={e => e.stopPropagation()}>
                       {ESTADOS.filter(e => e !== estado).map(e => (
                         <button key={e} disabled={loading[t.id]}
@@ -281,73 +287,81 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="detalle-tabs">
-              <button className={`detalle-tab ${tabDetalle === "info" ? "detalle-tab-active" : ""}`}
-                onClick={() => setTabDetalle("info")}>📋 Detalle</button>
-              <button className={`detalle-tab ${tabDetalle === "comentarios" ? "detalle-tab-active" : ""}`}
-                onClick={() => setTabDetalle("comentarios")}>💬 Comentarios</button>
+            {/* ── Contenido Detalle ── */}
+            <div style={{ marginTop: "0.5rem" }}>
+              <DetalleRow label="Descripción"  value={detalle.descripcion} />
+              <DetalleRow label="Prioridad" value={
+                <span className="prioridad-tag"
+                  style={{ background: PRIORIDAD_BG[detalle.prioridad], color: PRIORIDAD_COLOR[detalle.prioridad] }}>
+                  {detalle.prioridad}
+                </span>
+              } />
+              <DetalleRow label="Fecha/Hora"
+                value={detalle.fecha_hora
+                  ? new Date(detalle.fecha_hora).toLocaleString("es-VE")
+                  : null} />
+              <DetalleRow label="Ubicación"    value={detalle.ubicacion} />
+              {detalle.lat && (
+                <div style={{ marginTop: "0.6rem" }}>
+                  <MapaReadOnly lat={detalle.lat} lng={detalle.lng} />
+                </div>
+              )}
+
+              <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, margin: "0.9rem 0 0.4rem" }}>ASIGNACIÓN</div>
+              <DetalleRow label="Grupo"        value={detalle.grupo.nombre} />
+              <DetalleRow label="Asignada"     value={new Date(detalle.fecha_asignacion).toLocaleString("es-VE")} />
+              <DetalleRow label="Actualizada"  value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
+
+              <div style={{ marginTop: "0.75rem" }}>
+                <span className="detalle-label">Trabajando en esto:</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.4rem" }}>
+                  {detalle.miembros.length === 0
+                    ? <span className="trabajando-vacio">Sin miembros asignados</span>
+                    : detalle.miembros.map(m => (
+                      <span key={m.id} className="trabajando-chip" style={{ fontSize: "0.82rem", padding: "3px 10px" }}>
+                        {m.nombre}{m.cargo ? ` · ${m.cargo}` : ""}
+                      </span>
+                    ))
+                  }
+                </div>
+              </div>
+
+              <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button className="btn-secondary"
+                  onClick={e => { abrirModalMiembros(detalle, e); setDetalle(null); }}>
+                  ✏️ Asignar miembros
+                </button>
+                {ESTADOS.filter(e => e !== detalle.estado).map(e => (
+                  <button key={e} className="btn-estado"
+                    style={{ borderColor: COLOR[e], color: COLOR[e] }}
+                    disabled={loading[detalle.id]}
+                    onClick={() => cambiarEstado(detalle, e)}>
+                    → {e}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {tabDetalle === "info" && (
-              <>
-                <DetalleRow label="Descripción"  value={detalle.descripcion} />
-                <DetalleRow label="Prioridad" value={
-                  <span className="prioridad-tag"
-                    style={{ background: PRIORIDAD_BG[detalle.prioridad], color: PRIORIDAD_COLOR[detalle.prioridad] }}>
-                    {detalle.prioridad}
-                  </span>
-                } />
-                <DetalleRow label="Fecha/Hora"
-                  value={detalle.fecha_hora
-                    ? new Date(detalle.fecha_hora).toLocaleString("es-VE")
-                    : null} />
-                <DetalleRow label="Ubicación"    value={detalle.ubicacion} />
-                {detalle.lat && (
-                  <div style={{ marginTop: "0.6rem" }}>
-                    <MapaReadOnly lat={detalle.lat} lng={detalle.lng} />
-                  </div>
-                )}
-
-                <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af", letterSpacing: 1, margin: "0.9rem 0 0.4rem" }}>ASIGNACIÓN</div>
-                <DetalleRow label="Grupo"        value={detalle.grupo.nombre} />
-                <DetalleRow label="Asignada"     value={new Date(detalle.fecha_asignacion).toLocaleString("es-VE")} />
-                <DetalleRow label="Actualizada"  value={new Date(detalle.fecha_actualizacion).toLocaleString("es-VE")} />
-
-                <div style={{ marginTop: "0.75rem" }}>
-                  <span className="detalle-label">Trabajando en esto:</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.4rem" }}>
-                    {detalle.miembros.length === 0
-                      ? <span className="trabajando-vacio">Sin miembros asignados</span>
-                      : detalle.miembros.map(m => (
-                        <span key={m.id} className="trabajando-chip" style={{ fontSize: "0.82rem", padding: "3px 10px" }}>
-                          {m.nombre}{m.cargo ? ` · ${m.cargo}` : ""}
-                        </span>
-                      ))
-                    }
-                  </div>
+            {/* ── Comentarios Accordion ── */}
+            <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e5e7eb", paddingTop: "1rem" }}>
+              <div 
+                style={{ display: "flex", justifyContent: "space-between", cursor: "pointer", alignItems: "center", userSelect: "none" }}
+                onClick={() => setTabDetalle(prev => prev === "comentarios" ? "info" : "comentarios")}
+              >
+                <h4 style={{ margin: 0, color: "var(--navy)", fontSize: "0.95rem" }}>
+                  💬 Comentarios ({detalle.comentarios_count || 0})
+                </h4>
+                <span style={{ color: "#6b7280", fontSize: "0.85rem", fontWeight: 600 }}>
+                  {tabDetalle === "comentarios" ? "▲ Ocultar" : "▼ Mostrar"}
+                </span>
+              </div>
+              
+              {tabDetalle === "comentarios" && (
+                <div style={{ marginTop: "1rem" }}>
+                  <SeccionComentarios tareaId={detalle.id} onNewComment={reload} />
                 </div>
-
-                <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  <button className="btn-secondary"
-                    onClick={e => { abrirModalMiembros(detalle, e); setDetalle(null); }}>
-                    ✏️ Asignar miembros
-                  </button>
-                  {ESTADOS.filter(e => e !== detalle.estado).map(e => (
-                    <button key={e} className="btn-estado"
-                      style={{ borderColor: COLOR[e], color: COLOR[e] }}
-                      disabled={loading[detalle.id]}
-                      onClick={() => cambiarEstado(detalle, e)}>
-                      → {e}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {tabDetalle === "comentarios" && (
-              <SeccionComentarios tareaId={detalle.id} />
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -568,7 +582,7 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
   );
 }
 
-function SeccionComentarios({ tareaId }) {
+function SeccionComentarios({ tareaId, onNewComment }) {
   const { user } = useAuth();
   const [comentarios, setComentarios] = useState([]);
   const [texto, setTexto]             = useState("");
@@ -596,6 +610,7 @@ function SeccionComentarios({ tareaId }) {
       await api.crearComentarioTarea(tareaId, texto.trim());
       setTexto("");
       await reload();
+      if (onNewComment) onNewComment();
     } finally {
       setEnviando(false);
     }

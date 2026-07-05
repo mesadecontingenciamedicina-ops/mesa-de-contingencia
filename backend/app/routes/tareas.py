@@ -137,7 +137,8 @@ def listar_tareas():
     base = """
         SELECT t.id, t.estado, t.fecha_asignacion, t.fecha_actualizacion,
                t.descripcion, t.ubicacion, t.fecha_hora, t.prioridad, t.lat, t.lng,
-               g.id, g.nombre, m.nombre AS rep_nombre
+               g.id, g.nombre, m.nombre AS rep_nombre,
+               (SELECT COUNT(id) FROM tarea_comentarios tc WHERE tc.tarea_id = t.id) AS comentarios_count
         FROM tareas t
         JOIN grupos_trabajo g ON g.id = t.grupo_id
         LEFT JOIN miembros m  ON m.id  = g.representante_principal_id
@@ -154,6 +155,7 @@ def listar_tareas():
         "fecha_hora": str(r[6]) if r[6] else None,
         "prioridad": r[7] or "Normal", "lat": r[8], "lng": r[9],
         "grupo": {"id": r[10], "nombre": r[11], "representante": r[12]},
+        "comentarios_count": r[13],
         "miembros": []
     } for r in cur.fetchall()}
 
