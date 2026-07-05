@@ -239,6 +239,12 @@ export default function ModuloTareas({ refresh, abrirTareaId, onTareaAbierta }) 
                       </button>
                     </div>
 
+                    {t.comentarios_count > 0 && (
+                      <div style={{ marginTop: "0.4rem", fontSize: "0.78rem", color: "#6b7280", display: "flex", alignItems: "center", gap: "0.3rem", fontWeight: 600 }}>
+                        💬 {t.comentarios_count} comentario{t.comentarios_count !== 1 ? "s" : ""}
+                      </div>
+                    )}
+
                     <div className="kcard-actions" onClick={e => e.stopPropagation()}>
                       {ESTADOS.filter(e => e !== estado).map(e => (
                         <button key={e} disabled={loading[t.id]}
