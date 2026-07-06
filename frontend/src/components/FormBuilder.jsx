@@ -72,6 +72,19 @@ export default function FormBuilder({ value, onChange }) {
           </div>
 
           {q.type === "select" && (
+            <div className="form-group" style={{ marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input 
+                type="checkbox" 
+                id={`mult_${q.id}`} 
+                checked={!!q.multiple} 
+                onChange={e => updatePregunta(q.id, { multiple: e.target.checked })}
+                style={{ transform: "scale(1.2)" }}
+              />
+              <label htmlFor={`mult_${q.id}`} style={{ margin: 0, cursor: "pointer", color: "#3b82f6" }}>Permitir selección múltiple (no excluyente)</label>
+            </div>
+          )}
+
+          {q.type === "select" && (
             <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#f8f9fa", borderLeft: "4px solid #3b82f6", borderRadius: "4px" }}>
               <label style={{ fontWeight: 600, fontSize: "0.95rem", display: "block", marginBottom: "0.8rem" }}>Opciones de respuesta (Máximo 20)</label>
               {q.options.map((opt, oIndex) => (

@@ -92,9 +92,11 @@ function TablaCruda({ configuracion, respuestas }) {
           {respuestas.map(r => (
             <tr key={r.id}>
               <td>{new Date(r.fecha_creacion).toLocaleString()}</td>
-              {configuracion.map(q => (
-                <td key={q.id}>{r.respuestas[q.id] || "-"}</td>
-              ))}
+              {configuracion.map(q => {
+                const val = r.respuestas[q.id];
+                const displayVal = Array.isArray(val) ? val.join(", ") : val;
+                return <td key={q.id}>{displayVal || "-"}</td>;
+              })}
               <td>
                 {r.lat && r.lng ? (
                   <a href={`https://www.google.com/maps?q=${r.lat},${r.lng}`} target="_blank" rel="noreferrer" style={{ color: "#3b82f6" }}>
@@ -124,7 +126,11 @@ function RespuestaCard({ pregunta, respuestas }) {
       const counts = {};
       respuestasValidas.forEach(r => {
         const val = r.respuestas[pregunta.id];
-        counts[val] = (counts[val] || 0) + 1;
+        if (Array.isArray(val)) {
+          val.forEach(v => { counts[v] = (counts[v] || 0) + 1; });
+        } else {
+          counts[val] = (counts[val] || 0) + 1;
+        }
       });
       const chartData = Object.keys(counts).map(k => ({ name: k, count: counts[k] }));
 

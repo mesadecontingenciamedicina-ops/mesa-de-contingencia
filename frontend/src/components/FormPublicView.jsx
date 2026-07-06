@@ -126,12 +126,36 @@ export default function FormPublicView({ token }) {
             )}
 
             {q.type === 'select' && (
-              <select className="form-input" required={q.required}
-                value={respuestas[q.id] || ""} onChange={e => setRespuestas({...respuestas, [q.id]: e.target.value})}
-                style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", borderRadius: "6px", border: "1px solid #d1d5db", cursor: "pointer", background: "#fff" }}>
-                <option value="">-- Selecciona una opción --</option>
-                {q.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
+              <div style={{ padding: "0.5rem", border: "1px solid #e5e7eb", borderRadius: "8px", background: "#f9fafb" }}>
+                {q.options?.map(opt => (
+                  <label key={opt} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem", cursor: "pointer", fontWeight: "normal", marginBottom: "0" }}>
+                    <input 
+                      type={q.multiple ? "checkbox" : "radio"}
+                      name={`q_${q.id}`}
+                      value={opt}
+                      checked={
+                        q.multiple 
+                          ? (Array.isArray(respuestas[q.id]) && respuestas[q.id].includes(opt))
+                          : respuestas[q.id] === opt
+                      }
+                      onChange={e => {
+                        if (q.multiple) {
+                          const current = Array.isArray(respuestas[q.id]) ? respuestas[q.id] : [];
+                          if (e.target.checked) {
+                            setRespuestas({...respuestas, [q.id]: [...current, opt]});
+                          } else {
+                            setRespuestas({...respuestas, [q.id]: current.filter(v => v !== opt)});
+                          }
+                        } else {
+                          setRespuestas({...respuestas, [q.id]: opt});
+                        }
+                      }}
+                      style={{ transform: "scale(1.2)" }}
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
             )}
 
             {q.type === 'address' && (
