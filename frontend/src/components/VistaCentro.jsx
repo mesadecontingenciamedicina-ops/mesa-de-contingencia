@@ -497,7 +497,6 @@ export default function VistaCentro() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }
