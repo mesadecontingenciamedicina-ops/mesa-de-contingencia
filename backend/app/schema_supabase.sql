@@ -239,3 +239,28 @@ ALTER TABLE solicitudes
 ALTER TABLE usuarios
     ADD CONSTRAINT fk_usr_grupo  FOREIGN KEY (grupo_id)  REFERENCES grupos_trabajo(id) ON DELETE SET NULL,
     ADD CONSTRAINT fk_usr_centro FOREIGN KEY (centro_id) REFERENCES centros_atencion(id) ON DELETE SET NULL;
+
+-- Formularios (Encuestas / Recolección de Datos)
+CREATE TABLE IF NOT EXISTS formularios (
+    id             SERIAL PRIMARY KEY,
+    creado_por_rol VARCHAR(50) NOT NULL,
+    grupo_id       INT REFERENCES grupos_trabajo(id) ON DELETE CASCADE,
+    centro_id      INT REFERENCES centros_atencion(id) ON DELETE CASCADE,
+    titulo         VARCHAR(200) NOT NULL,
+    configuracion  JSONB NOT NULL DEFAULT '[]'::jsonb,
+    estado         VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
+    token_publico  UUID UNIQUE,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT ck_form_rol CHECK (creado_por_rol IN ('admin', 'grupo', 'centro')),
+    CONSTRAINT ck_form_estado CHECK (estado IN ('Pendiente', 'Aprobado', 'Rechazado'))
+);
+
+-- Respuestas a Formularios
+CREATE TABLE IF NOT EXISTS formulario_respuestas (
+    id             SERIAL PRIMARY KEY,
+    formulario_id  INT NOT NULL REFERENCES formularios(id) ON DELETE CASCADE,
+    respuestas     JSONB NOT NULL DEFAULT '{}'::jsonb,
+    lat            DOUBLE PRECISION,
+    lng            DOUBLE PRECISION,
+    fecha_creacion TIMESTAMPTZ DEFAULT NOW()
+);

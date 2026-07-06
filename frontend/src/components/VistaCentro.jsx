@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import PanelNotificaciones from "./PanelNotificaciones";
+import ModuloFormularios from "./ModuloFormularios";
 
 const PRIORIDADES = ["Baja", "Normal", "Alta"];
 const PRIORIDAD_COLOR = { Alta: "#dc2626", Normal: "#d97706", Baja: "#6b7280" };
@@ -38,6 +39,7 @@ const FORM_VACIO = (user) => ({
 export default function VistaCentro() {
   const { user, logout } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
+  const [tabActual, setTabActual] = useState("solicitudes");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(FORM_VACIO(user));
   const [editando, setEditando] = useState(null);
@@ -156,19 +158,40 @@ export default function VistaCentro() {
             <button className="btn-logout" onClick={handleLogout}>Salir</button>
           </div>
         </div>
-      </div>
-
-      <div style={{ padding: "1.5rem", maxWidth: 760, margin: "0 auto" }}>
-        {msg && <div className={`alert ${msg.ok ? "alert-ok" : "alert-err"}`} style={{ marginBottom: "1rem" }}>{msg.text}</div>}
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-          <h2 style={{ color: "var(--navy)", fontSize: "1.1rem", fontWeight: 700 }}>
-            📥 Mis Solicitudes ({solicitudes.length})
-          </h2>
-          <button className="btn-primary" onClick={() => { setForm(FORM_VACIO()); setShowForm(v => !v); }}>
-            {showForm ? "✕ Cancelar" : "+ Nueva Solicitud"}
+        
+        {/* TAB BAR */}
+        <div style={{ display: "flex", gap: "1.5rem", marginTop: "1rem", paddingBottom: "0.2rem" }}>
+          <button 
+            onClick={() => setTabActual("solicitudes")}
+            style={{ background: "transparent", border: "none", color: tabActual === "solicitudes" ? "var(--gold)" : "#fff", fontWeight: tabActual === "solicitudes" ? 700 : 400, borderBottom: tabActual === "solicitudes" ? "2px solid var(--gold)" : "none", paddingBottom: "0.2rem", cursor: "pointer", fontSize: "1.05rem" }}
+          >
+            Mis Solicitudes
+          </button>
+          <button 
+            onClick={() => setTabActual("formularios")}
+            style={{ background: "transparent", border: "none", color: tabActual === "formularios" ? "var(--gold)" : "#fff", fontWeight: tabActual === "formularios" ? 700 : 400, borderBottom: tabActual === "formularios" ? "2px solid var(--gold)" : "none", paddingBottom: "0.2rem", cursor: "pointer", fontSize: "1.05rem" }}
+          >
+            Formularios
           </button>
         </div>
+      </div>
+
+      {tabActual === "formularios" ? (
+        <div style={{ padding: "1.5rem", maxWidth: 1000, margin: "0 auto" }}>
+          <ModuloFormularios />
+        </div>
+      ) : (
+        <div style={{ padding: "1.5rem", maxWidth: 760, margin: "0 auto" }}>
+          {msg && <div className={`alert ${msg.ok ? "alert-ok" : "alert-err"}`} style={{ marginBottom: "1rem" }}>{msg.text}</div>}
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+            <h2 style={{ color: "var(--navy)", fontSize: "1.1rem", fontWeight: 700 }}>
+              📥 Mis Solicitudes ({solicitudes.length})
+            </h2>
+            <button className="btn-primary" onClick={() => { setForm(FORM_VACIO(user)); setShowForm(v => !v); }}>
+              {showForm ? "✕ Cancelar" : "+ Nueva Solicitud"}
+            </button>
+          </div>
 
         {/* Formulario nueva solicitud */}
         {showForm && (
@@ -424,7 +447,10 @@ export default function VistaCentro() {
             </div>
           </div>
         )}
-        {/* Modal Cambiar Contraseña */}
+      </div>
+      )}
+      
+      {/* Modal Cambiar Contraseña */}
         {modalPassword && (
           <div className="overlay" onClick={() => { setModalPassword(null); setShowPassword(false); }}>
             <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
@@ -471,7 +497,6 @@ export default function VistaCentro() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

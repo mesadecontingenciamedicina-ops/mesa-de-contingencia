@@ -1,6 +1,6 @@
 # Contexto General — Mesa de Contingencia
 
-> **Última actualización:** 2026-07-05 (Tareas: contador de comentarios en tarjetas del Kanban y visualización de comentarios tipo acordeón. Bypass para prefijo telefónico 422 de Digitel.)
+> **Última actualización:** 2026-07-06 (Formularios Externos: Constructor dinámico de encuestas públicas con campos flexibles, vistas de recolección sin autenticación usando UUID, y Dashboard analítico con gráficas y mapas de calor (Leaflet+Recharts) para recabar información masiva en base JSONB).
 > **Propósito de este archivo:** Dar a cualquier agente (IA o humano) el contexto completo del proyecto para poder trabajar sin necesidad de leer todo el código fuente. **Mantener este archivo actualizado con cada cambio significativo.**
 
 ---
@@ -167,6 +167,8 @@ mesa-de-contingencia/
 | `tarea_comentarios` | Comentarios en tareas | id, tarea_id, autor_username, texto |
 | `notificaciones` | Notificaciones push internas | id, para_rol, para_grupo_id, tarea_id, solicitud_id, texto, leida |
 | `publicaciones` | Avisos/noticias generales | id, descripcion, autor_username, grupo_id, fecha_creacion |
+| `formularios` | Configuración de formularios dinámicos | id, titulo, descripcion, configuracion (JSONB), token_publico, autor_username, grupo_id, estado |
+| `formulario_respuestas` | Respuestas a formularios externos | id, formulario_id, respuestas (JSONB), lat, lng |
 
 *(Nota: Las tablas `actividades`, `actividad_miembros` y `actividad_comentarios` aún existen en la BD por razones de retrocompatibilidad/legacy, pero han sido reemplazadas funcionalmente por las tablas de `tareas`)*
 
@@ -222,12 +224,22 @@ mesa-de-contingencia/
 |--------|------|------|-------------|
 | GET | `/api/centros/mis-contactos` | Centro | Contactos (`centro_contactos`) del centro autenticado — usado para autocompletar receptor de una solicitud |
 
+### Formularios Externos (Form Builder y Dashboard)
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/api/formularios` | Auth | Lista formularios (Admin: todos; Grupo: solo los suyos) |
+| POST | `/api/formularios` | Auth | Crea formulario. Admins nacen `Aprobado` + token. Grupos nacen `Pendiente`. |
+| PUT | `/api/formularios/:id/aprobar` | Privileged | Pasa a `Aprobado` y genera `token_publico` (uuid). |
+| GET | `/api/formularios/:id/respuestas` | Auth | Trae la configuración del formulario + arreglo de respuestas. |
+| GET | `/api/public/formularios/:token` | None | Devuelve la info/configuración de un formulario para ser llenado. |
+| POST | `/api/public/formularios/:token/respuestas` | None | Registra una nueva respuesta con datos en JSON. |
+
 ---
 
 ## 8. Frontend — Navegación
 
-- **Admin / Coordinador**: Miembros y Grupos | Publicaciones | Centros | Solicitudes | Tareas | Solicitudes Aprobadas
-- **Grupo**: Mi Grupo | Publicaciones | Mis Solicitudes | Mis Tareas | Solicitudes Aprobadas
+- **Admin / Coordinador**: Miembros y Grupos | Publicaciones | Centros | Solicitudes | Tareas | Solicitudes Aprobadas | Formularios
+- **Grupo**: Mi Grupo | Publicaciones | Mis Solicitudes | Mis Tareas | Solicitudes Aprobadas | Formularios
 - **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes (con lista de ítems visible directo en la tarjeta, y botón "Usar datos de contacto del centro" para autocompletar receptor/teléfono desde `centro_contactos`), reciben notificaciones (🔔) sobre cambios en sus propias solicitudes, y cambian su propia contraseña mediante un modal dedicado.
 
 ---

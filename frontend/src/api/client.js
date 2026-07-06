@@ -114,4 +114,18 @@ export const api = {
   getComentariosPub: (pubId) => req("GET", `/publicaciones/${pubId}/comentarios`),
   crearComentarioPub: (pubId, texto) => req("POST", `/publicaciones/${pubId}/comentarios`, { texto }),
   eliminarComentarioPub: (pubId, cid) => req("DELETE", `/publicaciones/${pubId}/comentarios/${cid}`),
+
+  getFormularios: (limit, offset) => {
+    let url = "/formularios";
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.set("limit", limit);
+    if (offset !== undefined) params.set("offset", offset);
+    if (params.toString()) url += `?${params.toString()}`;
+    return req("GET", url);
+  },
+  crearFormulario: (d) => req("POST", "/formularios", d),
+  aprobarFormulario: (id) => req("PUT", `/formularios/${id}/aprobar`),
+  getFormularioRespuestas: (id) => req("GET", `/formularios/${id}/respuestas`),
+  getPublicFormulario: (token) => req("GET", `/public/formularios/${token}`),
+  submitPublicFormulario: (token, d) => req("POST", `/public/formularios/${token}/respuestas`, d),
 };

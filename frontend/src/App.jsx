@@ -9,6 +9,8 @@ import ModuloCentros from "./components/ModuloCentros";
 import VistaCentro from "./components/VistaCentro";
 import PanelNotificaciones from "./components/PanelNotificaciones";
 import ModuloPublicaciones from "./components/ModuloPublicaciones";
+import FormPublicView from "./components/FormPublicView";
+import ModuloFormularios from "./components/ModuloFormularios";
 import { api } from "./api/client";
 import "./App.css";
 
@@ -19,6 +21,7 @@ const TABS_ADMIN = [
   { id: "solicitudes",label: "📥 Solicitudes" },
   { id: "aprobadas",  label: "📦 Solicitudes Aprobadas" },
   { id: "tareas",     label: "📊 Tareas" },
+  { id: "formularios",label: "📝 Formularios" },
 ];
 const TABS_GRUPO = [
   { id: "miembros",   label: "👤 Mi Grupo" },
@@ -26,6 +29,7 @@ const TABS_GRUPO = [
   { id: "solicitudes",label: "📥 Mis Solicitudes" },
   { id: "aprobadas",  label: "📦 Solicitudes Aprobadas" },
   { id: "tareas",     label: "📊 Mis Tareas" },
+  { id: "formularios",label: "📝 Formularios" },
 ];
 
 export default function App() {
@@ -34,6 +38,13 @@ export default function App() {
   const [actRefresh, setActRefresh] = useState(0);
   // tarea a abrir directamente desde notificación
   const [abrirTareaId, setAbrirTareaId] = useState(null);
+
+  // Intercepción de URL pública para formularios
+  const qs = new URLSearchParams(window.location.search);
+  const tokenFormulario = qs.get("formulario");
+  if (tokenFormulario) {
+    return <FormPublicView token={tokenFormulario} />;
+  }
 
   if (!user) return <Login />;
   if (user.rol === "centro") return <VistaCentro />;
@@ -103,6 +114,7 @@ export default function App() {
             onTareaAbierta={() => setAbrirTareaId(null)}
           />
         )}
+        {tab === "formularios" && <ModuloFormularios />}
       </main>
     </div>
   );
