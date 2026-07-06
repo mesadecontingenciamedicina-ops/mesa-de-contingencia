@@ -9,6 +9,7 @@ import ModuloCentros from "./components/ModuloCentros";
 import VistaCentro from "./components/VistaCentro";
 import PanelNotificaciones from "./components/PanelNotificaciones";
 import ModuloPublicaciones from "./components/ModuloPublicaciones";
+import FormPublicView from "./components/FormPublicView";
 import { api } from "./api/client";
 import "./App.css";
 
@@ -34,6 +35,13 @@ export default function App() {
   const [actRefresh, setActRefresh] = useState(0);
   // tarea a abrir directamente desde notificación
   const [abrirTareaId, setAbrirTareaId] = useState(null);
+
+  // Intercepción de URL pública para formularios
+  const qs = new URLSearchParams(window.location.search);
+  const tokenFormulario = qs.get("formulario");
+  if (tokenFormulario) {
+    return <FormPublicView token={tokenFormulario} />;
+  }
 
   if (!user) return <Login />;
   if (user.rol === "centro") return <VistaCentro />;
