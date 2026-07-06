@@ -126,13 +126,27 @@ def approve_formulario(form_id):
         UPDATE formularios
         SET estado = 'Aprobado', token_publico = %s
         WHERE id = %s AND estado = 'Pendiente'
-        RETURNING id
+        RETURNING id, creado_por_rol, grupo_id, centro_id, titulo
     """, (token, form_id))
     
-    if cur.rowcount == 0:
+    row = cur.fetchone()
+    if not row:
         conn.close()
         return jsonify({"error": "Formulario no encontrado o ya aprobado"}), 404
         
+    _, creado_por_rol, grupo_id, centro_id, titulo = row
+
+    if creado_por_rol == "grupo" and grupo_id:
+        cur.execute("""
+            INSERT INTO notificaciones (para_rol, para_grupo_id, texto)
+            VALUES ('grupo', %s, %s)
+        """, (grupo_id, f"Tu formulario '{titulo}' ha sido aprobado. Ya puedes compartir su enlace."))
+    elif creado_por_rol == "centro" and centro_id:
+        cur.execute("""
+            INSERT INTO notificaciones (para_rol, para_grupo_id, texto)
+            VALUES ('centro', %s, %s)
+        """, (centro_id, f"Tu formulario '{titulo}' ha sido aprobado. Ya puedes compartir su enlace."))
+
     conn.commit()
     conn.close()
     return jsonify({"token_publico": token}), 200
