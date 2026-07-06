@@ -242,7 +242,7 @@ function RespuestaCard({ pregunta, respuestas }) {
       <div style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>
         {pregunta.type.replace('_', ' ')}
       </div>
-      <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.15rem", color: "#1f2937", lineHeight: "1.4" }}>
+      <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.15rem", color: "#1f2937", lineHeight: "1.4", wordBreak: "break-word" }}>
         {pregunta.label}
       </h3>
       {renderContenido()}
