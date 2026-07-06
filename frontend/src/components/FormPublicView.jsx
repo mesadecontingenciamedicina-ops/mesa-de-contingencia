@@ -88,26 +88,26 @@ export default function FormPublicView({ token }) {
             
             {q.type === 'text_short' && (
               <input type="text" className="form-input" maxLength={50} required={q.required}
-                value={respuestas[q.id] || ""} onChange={e => setRespuestas({...respuestas, [q.id]: e.target.value})}
+                value={respuestas[q.id] || ""} onChange={e => setRespuestas(prev => ({...prev, [q.id]: e.target.value}))}
                 style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", borderRadius: "6px", border: "1px solid #d1d5db" }} />
             )}
             
             {q.type === 'text_long' && (
               <textarea className="form-input" maxLength={1000} required={q.required} rows={5}
-                value={respuestas[q.id] || ""} onChange={e => setRespuestas({...respuestas, [q.id]: e.target.value})}
+                value={respuestas[q.id] || ""} onChange={e => setRespuestas(prev => ({...prev, [q.id]: e.target.value}))}
                 style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", borderRadius: "6px", border: "1px solid #d1d5db", resize: "vertical" }} />
             )}
 
             {q.type === 'email' && (
               <input type="email" className="form-input" required={q.required}
-                value={respuestas[q.id] || ""} onChange={e => setRespuestas({...respuestas, [q.id]: e.target.value})}
+                value={respuestas[q.id] || ""} onChange={e => setRespuestas(prev => ({...prev, [q.id]: e.target.value}))}
                 style={{ width: "100%", padding: "0.75rem", fontSize: "1rem", borderRadius: "6px", border: "1px solid #d1d5db" }} />
             )}
 
             {q.type === 'phone' && (
               <div style={{ maxWidth: "400px" }}>
                 <TelefonoInput required={q.required} value={respuestas[q.id] || ""}
-                  onChange={val => setRespuestas({...respuestas, [q.id]: val})} />
+                  onChange={val => setRespuestas(prev => ({...prev, [q.id]: val}))} />
               </div>
             )}
 
@@ -116,7 +116,7 @@ export default function FormPublicView({ token }) {
                 <span style={{fontWeight: 500, color: "#6b7280"}}>0</span>
                 <input type="range" min="0" max="10" required={q.required}
                   value={respuestas[q.id] || (respuestas[q.id] === 0 ? 0 : 5)} 
-                  onChange={e => setRespuestas({...respuestas, [q.id]: parseInt(e.target.value, 10)})}
+                  onChange={e => setRespuestas(prev => ({...prev, [q.id]: parseInt(e.target.value, 10)}))}
                   style={{ flex: 1, cursor: "pointer" }} />
                 <span style={{fontWeight: 500, color: "#6b7280"}}>10</span>
                 <div style={{ background: "#3b82f6", color: "white", padding: "0.4rem 1rem", borderRadius: "20px", fontWeight: "bold", minWidth: "3rem", textAlign: "center" }}>
@@ -140,14 +140,16 @@ export default function FormPublicView({ token }) {
                       }
                       onChange={e => {
                         if (q.multiple) {
-                          const current = Array.isArray(respuestas[q.id]) ? respuestas[q.id] : [];
-                          if (e.target.checked) {
-                            setRespuestas({...respuestas, [q.id]: [...current, opt]});
-                          } else {
-                            setRespuestas({...respuestas, [q.id]: current.filter(v => v !== opt)});
-                          }
+                          setRespuestas(prev => {
+                            const current = Array.isArray(prev[q.id]) ? prev[q.id] : [];
+                            if (e.target.checked) {
+                              return {...prev, [q.id]: [...current, opt]};
+                            } else {
+                              return {...prev, [q.id]: current.filter(v => v !== opt)};
+                            }
+                          });
                         } else {
-                          setRespuestas({...respuestas, [q.id]: opt});
+                          setRespuestas(prev => ({...prev, [q.id]: opt}));
                         }
                       }}
                       style={{ transform: "scale(1.2)" }}
@@ -163,7 +165,7 @@ export default function FormPublicView({ token }) {
                 <Suspense fallback={<div style={{padding: "2rem", textAlign: "center"}}>Cargando mapa interactivo...</div>}>
                   <MapaPicker value={latLng} onChange={(coords) => {
                      setLatLng(coords);
-                     setRespuestas({...respuestas, [q.id]: "Ubicación registrada en el mapa"});
+                     setRespuestas(prev => ({...prev, [q.id]: "Ubicación registrada en el mapa"}));
                   }} />
                 </Suspense>
                 {latLng && <div style={{ padding: "0.5rem 1rem", background: "#ecfdf5", color: "#065f46", fontSize: "0.9rem", borderTop: "1px solid #d1d5db" }}>✓ Ubicación capturada correctamente.</div>}
