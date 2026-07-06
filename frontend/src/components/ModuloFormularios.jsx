@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import FormBuilder from "./FormBuilder";
+import DashboardRespuestas from "./DashboardRespuestas";
 
 export default function ModuloFormularios() {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ export default function ModuloFormularios() {
   
   // Vista: 'lista', 'crear', 'respuestas'
   const [vista, setVista] = useState("lista");
+  const [formActivo, setFormActivo] = useState(null);
   
   // Para creación
   const [nuevoTitulo, setNuevoTitulo] = useState("");
@@ -113,6 +115,10 @@ export default function ModuloFormularios() {
     );
   }
 
+  if (vista === "respuestas") {
+    return <DashboardRespuestas formId={formActivo} onBack={() => setVista("lista")} />;
+  }
+
   return (
     <div className="modulo-panel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
@@ -175,8 +181,7 @@ export default function ModuloFormularios() {
                           🔗 Enlace
                         </button>
                       )}
-                      {/* Placeholder para la Fase 4 */}
-                      <button onClick={() => alert("La visualización de resultados estará disponible en la Fase 4 (Dashboard Analítico).")} className="btn-secondary" style={{ fontSize: "0.85rem", padding: "0.4rem 0.8rem" }}>
+                      <button onClick={() => { setFormActivo(f.id); setVista("respuestas"); }} className="btn-secondary" style={{ fontSize: "0.85rem", padding: "0.4rem 0.8rem" }}>
                         📊 Resultados
                       </button>
                     </div>
