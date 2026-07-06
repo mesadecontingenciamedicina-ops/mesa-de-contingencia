@@ -12,19 +12,22 @@ def get_formularios():
     user = get_current_user()
     conn = get_connection()
     cur = conn.cursor()
+    limit = request.args.get("limit", default=None, type=int)
+    offset = request.args.get("offset", default=0, type=int)
     
     # Filtros según rol
     if user["rol"] == "admin":
-        cur.execute("""
+        query = """
             SELECT f.id, f.creado_por_rol, f.titulo, f.estado, f.token_publico, f.fecha_creacion,
                    g.nombre, c.nombre
             FROM formularios f
             LEFT JOIN grupos_trabajo g ON f.grupo_id = g.id
             LEFT JOIN centros_atencion c ON f.centro_id = c.id
             ORDER BY f.fecha_creacion DESC
-        """)
+        """
+        params = []
     elif user["rol"] == "grupo":
-        cur.execute("""
+        query = """
             SELECT f.id, f.creado_por_rol, f.titulo, f.estado, f.token_publico, f.fecha_creacion,
                    g.nombre, c.nombre
             FROM formularios f
@@ -32,9 +35,10 @@ def get_formularios():
             LEFT JOIN centros_atencion c ON f.centro_id = c.id
             WHERE f.grupo_id = %s
             ORDER BY f.fecha_creacion DESC
-        """, (user["grupo_id"],))
+        """
+        params = [user["grupo_id"]]
     else: # centro
-        cur.execute("""
+        query = """
             SELECT f.id, f.creado_por_rol, f.titulo, f.estado, f.token_publico, f.fecha_creacion,
                    g.nombre, c.nombre
             FROM formularios f
@@ -42,9 +46,17 @@ def get_formularios():
             LEFT JOIN centros_atencion c ON f.centro_id = c.id
             WHERE f.centro_id = %s
             ORDER BY f.fecha_creacion DESC
-        """, (user["centro_id"],))
+        """
+        params = [user["centro_id"]]
         
+    if limit is not None:
+        query += " LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+        
+    cur.execute(query, tuple(params))
     filas = cur.fetchall()
+    
+    # Optional: also return total count if we need it, but frontend can just keep fetching until less than limit is returned.
     conn.close()
     
     resultado = []

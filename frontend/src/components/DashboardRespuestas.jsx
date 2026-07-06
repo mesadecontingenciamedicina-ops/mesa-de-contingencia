@@ -78,8 +78,37 @@ export default function DashboardRespuestas({ formId, onBack }) {
 }
 
 function TablaCruda({ configuracion, respuestas }) {
+  const exportToCSV = () => {
+    const headers = ["Fecha", ...configuracion.map(q => `"${q.label.replace(/"/g, '""')}"`), "Ubicación (Mapa)"];
+    
+    const rows = respuestas.map(r => {
+      const date = `"${new Date(r.fecha_creacion).toLocaleString()}"`;
+      const cols = configuracion.map(q => {
+        const val = r.respuestas[q.id];
+        const displayVal = Array.isArray(val) ? val.join(" | ") : (val || "");
+        return `"${String(displayVal).replace(/"/g, '""')}"`;
+      });
+      const location = (r.lat && r.lng) ? `https://www.google.com/maps?q=${r.lat},${r.lng}` : "No registrada";
+      return [date, ...cols, `"${location}"`].join(",");
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "respuestas_formulario.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ background: "#fff", padding: "1rem", borderRadius: "12px", boxShadow: "0 2px 4px rgba(0,0,0,0.05)", overflowX: "auto" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+        <button onClick={exportToCSV} className="btn-secondary" style={{ padding: "0.5rem 1rem", fontSize: "0.95rem" }}>
+          ⬇ Descargar CSV (Hoja de cálculo)
+        </button>
+      </div>
       <table className="table" style={{ width: "100%", whiteSpace: "nowrap" }}>
         <thead>
           <tr>

@@ -9,6 +9,9 @@ export default function ModuloFormularios() {
   const [formularios, setFormularios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 10;
   
   // Vista: 'lista', 'crear', 'respuestas'
   const [vista, setVista] = useState("lista");
@@ -19,21 +22,31 @@ export default function ModuloFormularios() {
   const [configuracion, setConfiguracion] = useState([]);
   const [creando, setCreando] = useState(false);
 
-  const cargarFormularios = async () => {
+  const cargarFormularios = async (reset = false) => {
     try {
-      setLoading(true);
-      const res = await api.getFormularios();
-      setFormularios(res);
+      if (reset) setLoading(true);
+      const currentOffset = reset ? 0 : offset;
+      const res = await api.getFormularios(LIMIT, currentOffset);
+      
+      if (reset) {
+        setFormularios(res);
+        setOffset(LIMIT);
+      } else {
+        setFormularios(prev => [...prev, ...res]);
+        setOffset(prev => prev + LIMIT);
+      }
+      
+      setHasMore(res.length === LIMIT);
       setError("");
     } catch (err) {
       setError("Error al cargar formularios: " + err.message);
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
     }
   };
 
   useEffect(() => {
-    cargarFormularios();
+    cargarFormularios(true);
   }, []);
 
   const handleCrear = async () => {
@@ -53,7 +66,7 @@ export default function ModuloFormularios() {
       setVista("lista");
       setNuevoTitulo("");
       setConfiguracion([]);
-      cargarFormularios();
+      cargarFormularios(true);
     } catch (err) {
       alert("Error al crear: " + err.message);
     } finally {
@@ -65,7 +78,7 @@ export default function ModuloFormularios() {
     if (!window.confirm("¿Estás seguro de aprobar este formulario y generar el enlace público?")) return;
     try {
       await api.aprobarFormulario(id);
-      cargarFormularios();
+      cargarFormularios(true);
     } catch (err) {
       alert("Error al aprobar: " + err.message);
     }
@@ -197,6 +210,14 @@ export default function ModuloFormularios() {
               )}
             </tbody>
           </table>
+          
+          {hasMore && formularios.length > 0 && (
+            <div style={{ textAlign: "center", padding: "1.5rem" }}>
+              <button onClick={() => cargarFormularios(false)} className="btn-secondary" style={{ padding: "0.6rem 2rem" }}>
+                ↓ Cargar más
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
