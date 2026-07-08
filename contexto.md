@@ -227,8 +227,8 @@ mesa-de-contingencia/
 ### Formularios Externos (Form Builder y Dashboard)
 | Método | Ruta | Auth | Descripción |
 |--------|------|------|-------------|
-| GET | `/api/formularios` | Auth | Lista formularios (Admin: todos; Grupo: solo los suyos) |
-| POST | `/api/formularios` | Auth | Crea formulario. Admins nacen `Aprobado` + token. Grupos nacen `Pendiente`. |
+| GET | `/api/formularios` | Auth | Lista formularios (Admin: todos; Grupo/Centro: solo los suyos). Soporta `?limit=X&offset=Y` para paginación. |
+| POST | `/api/formularios` | Auth | Crea formulario. Admins nacen `Aprobado` + token. Grupos/Centros nacen `Pendiente`. |
 | PUT | `/api/formularios/:id/aprobar` | Privileged | Pasa a `Aprobado` y genera `token_publico` (uuid). |
 | GET | `/api/formularios/:id/respuestas` | Auth | Trae la configuración del formulario + arreglo de respuestas. |
 | GET | `/api/public/formularios/:token` | None | Devuelve la info/configuración de un formulario para ser llenado. |
@@ -240,7 +240,7 @@ mesa-de-contingencia/
 
 - **Admin / Coordinador**: Miembros y Grupos | Publicaciones | Centros | Solicitudes | Tareas | Solicitudes Aprobadas | Formularios
 - **Grupo**: Mi Grupo | Publicaciones | Mis Solicitudes | Mis Tareas | Solicitudes Aprobadas | Formularios
-- **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes (con lista de ítems visible directo en la tarjeta, y botón "Usar datos de contacto del centro" para autocompletar receptor/teléfono desde `centro_contactos`), reciben notificaciones (🔔) sobre cambios en sus propias solicitudes, y cambian su propia contraseña mediante un modal dedicado.
+- **Centro**: Vista directa (`VistaCentro.jsx`). Pueden crear y gestionar sus solicitudes (con lista de ítems visible directo en la tarjeta, y botón "Usar datos de contacto del centro" para autocompletar receptor/teléfono desde `centro_contactos`), reciben notificaciones (🔔) sobre cambios en sus propias solicitudes, y cambian su propia contraseña mediante un modal dedicado. Tienen un sub-menú para alternar entre "Mis Solicitudes" y "Formularios".
 
 ---
 

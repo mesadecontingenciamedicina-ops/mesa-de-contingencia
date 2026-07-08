@@ -25,6 +25,8 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
   const [miembros, setMiembros] = useState([]);
   const [grupos,   setGrupos]   = useState([]);
   const [tab, setTab] = useState(user.rol === "admin" ? "miembros" : "registrar");
+  const [filtroGrupo, setFiltroGrupo] = useState("");
+  const [filtroTexto, setFiltroTexto] = useState("");
   const [msg, setMsg] = useState(null);
   const [form, setForm] = useState(FORM_VACIO);
   const [errores, setErrores] = useState({});
@@ -334,10 +336,51 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
 
       {/* ── Lista miembros ── */}
       {(tab === "miembros") && (() => {
-        const miembrosUnicos = [...new Map(miembros.map(m => [m.id, m])).values()];
+        let miembrosUnicos = [...new Map(miembros.map(m => [m.id, m])).values()];
+        
+        if (filtroGrupo) {
+          miembrosUnicos = miembrosUnicos.filter(m => 
+            miembros.some(x => x.id === m.id && x.grupo && String(x.grupo.id) === filtroGrupo)
+          );
+        }
+        
+        if (filtroTexto) {
+          const txt = filtroTexto.toLowerCase();
+          miembrosUnicos = miembrosUnicos.filter(m => 
+            (m.nombre || "").toLowerCase().includes(txt) ||
+            (m.cedula || "").toLowerCase().includes(txt) ||
+            (m.email || "").toLowerCase().includes(txt)
+          );
+        }
+
         return (
         <div className="ver-registros">
-          <h3>({miembrosUnicos.length} miembro{miembrosUnicos.length !== 1 ? "s" : ""})</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "1rem" }}>
+            <h3 style={{ margin: 0 }}>({miembrosUnicos.length} miembro{miembrosUnicos.length !== 1 ? "s" : ""})</h3>
+            
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <input 
+                type="text" 
+                placeholder="Buscar por nombre, cédula o correo..." 
+                value={filtroTexto}
+                onChange={e => setFiltroTexto(e.target.value)}
+                style={{ padding: "0.4rem 0.8rem", borderRadius: "6px", border: "1px solid #d1d5db", minWidth: "250px" }}
+              />
+              {isAdmin && (
+                <select 
+                  value={filtroGrupo} 
+                  onChange={e => setFiltroGrupo(e.target.value)}
+                  style={{ padding: "0.4rem 0.8rem", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                >
+                  <option value="">Todos los grupos</option>
+                  {grupos.map(g => (
+                    <option key={g.id} value={g.id}>{g.nombre}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+          
           {miembrosUnicos.length === 0
             ? <p className="empty">No hay miembros registrados.</p>
             : (
