@@ -378,6 +378,22 @@ export default function ModuloMiembrosGrupos({ onDataChange }) {
                   ))}
                 </select>
               )}
+              <button 
+                title="Copiar correos filtrados"
+                onClick={() => {
+                  const correos = miembrosUnicos.map(m => m.email).filter(Boolean).join(", ");
+                  if(correos) {
+                    navigator.clipboard.writeText(correos);
+                    flash("Correos copiados al portapapeles.");
+                  } else {
+                    flash("No hay correos para copiar.", false);
+                  }
+                }}
+                className="btn-secondary"
+                style={{ padding: "0.4rem 0.8rem", fontSize: "0.9rem" }}
+              >
+                📋 Copiar Correos
+              </button>
             </div>
           </div>
           
