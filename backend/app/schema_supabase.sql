@@ -193,6 +193,8 @@ CREATE TABLE IF NOT EXISTS publicaciones (
     descripcion     TEXT NOT NULL,
     autor_username  VARCHAR(100) NOT NULL,
     grupo_id        INT REFERENCES grupos_trabajo(id) ON DELETE SET NULL,
+    archivo_url     TEXT,
+    archivo_nombre  TEXT,
     eliminada       BOOLEAN DEFAULT FALSE,
     fecha_creacion  TIMESTAMPTZ DEFAULT NOW()
 );

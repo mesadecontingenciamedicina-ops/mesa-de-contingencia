@@ -13,6 +13,7 @@ export default function ModuloPublicaciones() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nuevaDesc, setNuevaDesc] = useState("");
   const [autorSeleccionado, setAutorSeleccionado] = useState("");
+  const [archivoAdjunto, setArchivoAdjunto] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
   // Estado de comentarios
@@ -76,12 +77,30 @@ export default function ModuloPublicaciones() {
 
     setGuardando(true);
     setError(null);
+    let url = null;
+    let nombre = null;
+
+    if (archivoAdjunto) {
+      try {
+        const uploadRes = await api.uploadAdjunto(archivoAdjunto);
+        url = uploadRes.url;
+        nombre = uploadRes.nombre;
+      } catch (err) {
+        setError("Error subiendo archivo: " + err.message);
+        setGuardando(false);
+        return;
+      }
+    }
+
     try {
       await api.crearPublicacion({ 
         descripcion: nuevaDesc,
-        autor_username: autorSeleccionado
+        autor_username: autorSeleccionado,
+        archivo_url: url,
+        archivo_nombre: nombre
       });
       setNuevaDesc("");
+      setArchivoAdjunto(null);
       setMostrarForm(false);
       await cargarPublicaciones();
     } catch (err) {
@@ -199,6 +218,16 @@ export default function ModuloPublicaciones() {
                   ))}
                 </select>
               </label>
+
+              <label>
+                Adjuntar Archivo (Opcional, max 1 semana)
+                <input 
+                  type="file" 
+                  accept="image/*,.pdf" 
+                  onChange={(e) => setArchivoAdjunto(e.target.files[0] || null)}
+                  style={{ marginTop: "0.5rem" }}
+                />
+              </label>
             </div>
           </div>
 
@@ -241,6 +270,26 @@ export default function ModuloPublicaciones() {
               </div>
               <div className="pub-card-body">
                 {pub.descripcion}
+                
+                {pub.archivo_nombre && (
+                  <div className="pub-archivo" style={{ marginTop: "1rem" }}>
+                    {pub.archivo_url ? (
+                      <a 
+                        href={pub.archivo_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-ghost"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem", border: "1px solid #ccc", borderRadius: "8px", textDecoration: "none", color: "inherit", fontSize: "0.9rem" }}
+                      >
+                        📎 Descargar {pub.archivo_nombre}
+                      </a>
+                    ) : (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem", border: "1px dashed #999", borderRadius: "8px", color: "#666", backgroundColor: "#f9f9f9", fontSize: "0.9rem" }}>
+                        ⚠️ Archivo adjunto vencido: {pub.archivo_nombre}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="pub-footer">
                 <button 

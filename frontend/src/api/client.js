@@ -110,6 +110,28 @@ export const api = {
   getPublicaciones: () => req("GET", "/publicaciones"),
   crearPublicacion: (d) => req("POST", "/publicaciones", d),
   eliminarPublicacion: (id) => req("DELETE", `/publicaciones/${id}`),
+  
+  uploadAdjunto: async (file) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const res = await fetch(BASE + "/publicaciones/upload", {
+      method: "POST",
+      headers: {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
+      body: formData
+    });
+    
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const data = isJson ? await res.json() : null;
+    
+    if (!res.ok) {
+      throw new Error(data?.error || `Error ${res.status}`);
+    }
+    return data;
+  },
 
   getComentariosPub: (pubId) => req("GET", `/publicaciones/${pubId}/comentarios`),
   crearComentarioPub: (pubId, texto) => req("POST", `/publicaciones/${pubId}/comentarios`, { texto }),

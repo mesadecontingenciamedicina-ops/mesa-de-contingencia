@@ -1,7 +1,22 @@
+import os
+import uuid
 from flask import request, jsonify
+from werkzeug.utils import secure_filename
+try:
+    from supabase import create_client, Client
+except ImportError:
+    pass
+
 from . import main_bp
 from ..db import get_connection
 from ..auth import require_auth, require_privileged, get_current_user
+
+def get_supabase_client():
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    if not url or not key:
+        return None
+    return create_client(url, key)
 
 @main_bp.get("/api/publicaciones")
 @require_auth
@@ -10,7 +25,8 @@ def get_publicaciones():
     cur = conn.cursor()
     cur.execute("""
         SELECT p.id, p.descripcion, p.autor_username, p.grupo_id, g.nombre, p.fecha_creacion,
-               (SELECT COUNT(*) FROM publicacion_comentarios c WHERE c.publicacion_id = p.id AND c.eliminado = FALSE) as num_comentarios
+               (SELECT COUNT(*) FROM publicacion_comentarios c WHERE c.publicacion_id = p.id AND c.eliminado = FALSE) as num_comentarios,
+               p.archivo_url, p.archivo_nombre
         FROM publicaciones p
         LEFT JOIN grupos_trabajo g ON g.id = p.grupo_id
         WHERE p.eliminada = FALSE
@@ -24,7 +40,9 @@ def get_publicaciones():
             "grupo_id": r[3],
             "grupo_nombre": r[4],
             "fecha": str(r[5]),
-            "num_comentarios": r[6]
+            "num_comentarios": r[6],
+            "archivo_url": r[7],
+            "archivo_nombre": r[8]
         } for r in cur.fetchall()
     ]
     conn.close()
@@ -39,6 +57,8 @@ def crear_publicacion():
     
     descripcion = (data.get("descripcion") or "").strip()
     autor_username = (data.get("autor_username") or "").strip()
+    archivo_url = data.get("archivo_url")
+    archivo_nombre = data.get("archivo_nombre")
     
     if not descripcion:
         return jsonify({"error": "La descripción no puede estar vacía"}), 400
@@ -54,9 +74,9 @@ def crear_publicacion():
     
     cur.execute("""
         INSERT INTO publicaciones
-            (descripcion, autor_username, grupo_id)
-        VALUES (%s, %s, %s) RETURNING id, fecha_creacion
-    """, (descripcion, autor_username, grupo_id))
+            (descripcion, autor_username, grupo_id, archivo_url, archivo_nombre)
+        VALUES (%s, %s, %s, %s, %s) RETURNING id, fecha_creacion
+    """, (descripcion, autor_username, grupo_id, archivo_url, archivo_nombre))
     
     nuevo = cur.fetchone()
     nuevo_id, fecha = nuevo[0], str(nuevo[1])
@@ -96,8 +116,75 @@ def crear_publicacion():
         "autor_username": autor_username,
         "grupo_id": grupo_id,
         "grupo_nombre": grupo_nombre,
-        "fecha": fecha
+        "fecha": fecha,
+        "archivo_url": archivo_url,
+        "archivo_nombre": archivo_nombre
     }), 201
+
+@main_bp.post("/api/publicaciones/upload")
+@require_privileged
+def upload_publicacion_adjunto():
+    if 'file' not in request.files:
+        return jsonify({"error": "No hay archivo en la petición"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No se seleccionó ningún archivo"}), 400
+        
+    supabase = get_supabase_client()
+    if not supabase:
+        return jsonify({"error": "Supabase Storage no está configurado"}), 500
+        
+    filename = secure_filename(file.filename)
+    unique_filename = f"{uuid.uuid4()}_{filename}"
+    
+    file_bytes = file.read()
+    
+    try:
+        # Importante: asegurarse de enviar el content_type
+        content_type = file.content_type or "application/octet-stream"
+        res = supabase.storage.from_("publicaciones").upload(unique_filename, file_bytes, {"content-type": content_type})
+        public_url = supabase.storage.from_("publicaciones").get_public_url(unique_filename)
+        return jsonify({"url": public_url, "nombre": file.filename}) # Retorna nombre original
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@main_bp.post("/api/cron/cleanup-archivos")
+def cleanup_archivos_vencidos():
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT id, archivo_url FROM publicaciones
+        WHERE archivo_url IS NOT NULL AND fecha_creacion < NOW() - INTERVAL '7 days'
+    """)
+    rows = cur.fetchall()
+    
+    if not rows:
+        conn.close()
+        return jsonify({"deleted": 0})
+        
+    supabase = get_supabase_client()
+    if not supabase:
+        conn.close()
+        return jsonify({"error": "Supabase storage no configurado"}), 500
+        
+    deleted_count = 0
+    for r in rows:
+        pub_id, url = r[0], r[1]
+        parts = url.split("/publicaciones/")
+        if len(parts) == 2:
+            filename = parts[1].split("?")[0] # Eliminar params si hay
+            try:
+                supabase.storage.from_("publicaciones").remove([filename])
+            except:
+                pass 
+        
+        cur.execute("UPDATE publicaciones SET archivo_url = NULL WHERE id = %s", (pub_id,))
+        deleted_count += 1
+        
+    conn.commit()
+    conn.close()
+    return jsonify({"deleted": deleted_count})
 
 
 @main_bp.delete("/api/publicaciones/<int:pub_id>")

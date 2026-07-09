@@ -2,35 +2,28 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 
-# Cargar variables de entorno (por si se ejecuta localmente con .env)
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    print("❌ Error: DATABASE_URL no está definida.")
-    exit(1)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+DB_SCHEMA = os.environ.get("DB_SCHEMA", "dev")
 
 def migrate():
-    schema = os.getenv("DB_SCHEMA", "public")
-    print(f"Conectando a {DATABASE_URL.split('@')[-1]} con esquema {schema}...")
-    conn = psycopg2.connect(DATABASE_URL, options=f"-c search_path={schema}")
-    cur = conn.cursor()
+    print(f"Connecting to {DATABASE_URL}...")
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
+    cursor = conn.cursor()
+    
+    print(f"Setting search_path to {DB_SCHEMA}")
+    cursor.execute(f"SET search_path TO {DB_SCHEMA}")
+    
+    try:
+        print("Adding columns to publicaciones...")
+        cursor.execute("ALTER TABLE publicaciones ADD COLUMN archivo_url TEXT;")
+        cursor.execute("ALTER TABLE publicaciones ADD COLUMN archivo_nombre TEXT;")
+        print("Columns added successfully.")
+    except Exception as e:
+        print(f"Error (might already exist): {e}")
 
-    print("Creando tabla publicaciones...")
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS publicaciones (
-            id              SERIAL PRIMARY KEY,
-            descripcion     TEXT NOT NULL,
-            autor_username  VARCHAR(100) NOT NULL,
-            grupo_id        INT REFERENCES grupos_trabajo(id) ON DELETE SET NULL,
-            eliminada       BOOLEAN DEFAULT FALSE,
-            fecha_creacion  TIMESTAMPTZ DEFAULT NOW()
-        );
-    """)
-
-    conn.commit()
-    print("✅ Tabla publicaciones creada correctamente.")
     conn.close()
 
 if __name__ == "__main__":

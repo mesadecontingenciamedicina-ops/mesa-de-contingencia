@@ -6,3 +6,4 @@ gunicorn==22.0.0
 werkzeug==3.0.6
 PyJWT==2.8.0
 phonenumbers==8.13.35
+supabase==2.3.6
